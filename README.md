@@ -6,16 +6,19 @@ This project focuses on enhancing code readability and reproducibility while inc
 My research focuses on Computational Chemistry. Thus, my project will be particularly tailored for tasks within this area, using the Atomic Simulation Environment ([ASE](https://wiki.fysik.dtu.dk/ase/)).
 
 ## Goals
+This is a list of all the things I would like to do, in a somewhat prioritized order. Due to time limitations, I might not be able to finish them all within the timeline of this course.
 
 - Organize project files and directories logically for better project management and collaboration.
 
 - Improve reproducibility by creating clear instructions for environment setup, using conda.
 
-- Enhance code readability through consistent code formatting, where I think I will be trying out [Ruff](https://github.com/astral-sh/ruff).
+- Enhance code readability through consistent code formatting, where I plan to try out [Ruff](https://github.com/astral-sh/ruff).
 
-- Incorporating GitHub actions.
+- Improve documentation for clear instructions on how to use my code.
 
-- Improving documentation for clear instructions on how to use my code.
+- Transfer existing or partially completed analysis scripts to Jupyter notebooks for better and more interactive visualization. Evaluate their efficiency, readability, and structure.
 
-- Incorporate testing procedures to ensure code reliability.
+- Incorporate GitHub actions.
+
+- Implement testing procedures to ensure code reliability.
 
