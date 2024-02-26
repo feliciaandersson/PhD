@@ -1,0 +1,16 @@
+name: project
+
+channels:
+  - defaults
+  
+dependencies:
+  - python=3.11
+  - numpy
+  - matplotlib
+  - pandas
+  - scipy
+  - jupyter
+  - pip
+  - pip:
+    - git+https://gitlab.com/ase/ase.git@master
+    - hydra-core==1.3.*
