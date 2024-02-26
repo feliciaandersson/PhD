@@ -1,0 +1,12 @@
+# Hydra Configuration File
+
+job:
+  prefix: cellobiose
+  calculator: dftb
+  specification: GFN2
+  calc_type: sp
+  label: "${job.calculator}_${job.specification}_${job.calc_type}"
+
+databases:
+  input_db_path: "./db/input_structure_${job.prefix}.db"
+  opt_db_path: "./db/${job.prefix}_${job.label}_test.db"
