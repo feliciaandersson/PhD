@@ -1,7 +1,7 @@
 # Project in Advanced Scientific Computing with Python
 
 ## Overview
-This project focuses on enhancing code readability and reproducibility while incorporating testing, documentation, and organization using GitHub. The primary objectives include enhancing the organization of project files and directories, providing clear instructions for conda environment setup, maintaining consistent code formatting, integrating GitHub actions for automated tasks, documenting, and implementating testing procedures.
+This project focuses on enhancing code readability and reproducibility while incorporating testing, documentation, and organization using GitHub. The primary objectives include enhancing the organization of project files and directories, providing clear instructions for conda environment setup, maintaining consistent code formatting, integrating GitHub actions for automated tasks, documenting, and implementing testing procedures.
 
 My research focuses on Computational Chemistry. Thus, my project will be particularly tailored for tasks within this area, using the Atomic Simulation Environment ([ASE](https://wiki.fysik.dtu.dk/ase/)).
 
