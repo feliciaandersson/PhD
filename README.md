@@ -22,3 +22,33 @@ This is a list of all the things I would like to do, in a somewhat prioritized o
 
 - Implement testing procedures to ensure code reliability.
 
+
+
+
+
+
+# Results from the Project
+
+## Prerequisites
+
+### Anaconda or Miniconda Installation:
+   - If you haven't already, download and install Anaconda or Miniconda from the [official website](https://www.anaconda.com/products/distribution) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html).
+   - Follow the installation instructions provided for your operating system.
+
+## Installation
+
+To install the necessary dependencies, create a conda environment using the 
+provided `environment.yml` file:
+
+```bash
+conda env create -f environment.yml
+```
+
+To update the environment if you have made changes to the  `environment.yml` 
+file, use:
+
+```bash
+conda env update -f environment.yml --prune
+```
+
+## Usage

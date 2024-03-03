@@ -163,7 +163,7 @@ def optimize_atoms(input_db, opt_db, calculator, calc_type, label, specification
             )
 
 
-@hydra.main(version_base=None, config_path="../.", config_name="config.yaml")
+@hydra.main(version_base=None, config_path="../config/", config_name="config.yaml")
 def my_app(cfg: DictConfig) -> None:
     print(OmegaConf.to_yaml(cfg))
     # log.info("Info level message")
