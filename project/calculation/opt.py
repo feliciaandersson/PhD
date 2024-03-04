@@ -30,7 +30,7 @@ def setup_start_time(label):
     """
     start_time = time.strftime("%H:%M:%S", time.localtime())
     start = time.time()
-    logging.info(f"--------------------------------------------------------------")
+    logging.info("-" * 80)
     logging.info(f"Starting a new job with label {label} at {start_time}")
 
     return start
@@ -61,14 +61,14 @@ def create_folder(calculation_label):
     """
 
     try:
-        logging.info(f"\t\t Makes output folders: {calculation_label}")
+        logging.info(f"\t\tMakes output folders: {calculation_label}")
         output_folder = os.path.join("./outputs/", calculation_label)
         os.makedirs(output_folder, exist_ok=True)
         os.chdir(output_folder)
 
     except Exception as e:
-        logging.info(
-            f"\t\t Error in making output folder in optimize_atoms for {calculation_label}: {str(e)}"
+        logging.error(
+            f"\t\tError in making output folder for {calculation_label}: {str(e)}"
         )
 
 
@@ -87,7 +87,7 @@ def run_calc(calculator, atoms, label, calc_type, specification):
     - opt_atoms: Optimized atoms object.
     """
 
-    logging.info(f"\t\t Performing an {calc_type} calculation in {calculator}")
+    logging.info(f"\t\tPerforming an {calc_type} calculation in {calculator}")
 
     try:
         if calculator.lower() == "dftb":
@@ -100,7 +100,7 @@ def run_calc(calculator, atoms, label, calc_type, specification):
             )
 
     except Exception as e:
-        logging.info(f"\t\t Error in run_calc for {calculator} calculation: {str(e)}")
+        logging.error(f"\t\tError in run_calc for {calculator} calculation: {str(e)}")
         return None
 
     return opt_atoms
@@ -120,9 +120,9 @@ def optimize_atoms(input_db, opt_db, calculator, calc_type, label, specification
     """
 
     for row in input_db.select():
-        name = row.name[13:-4]
+        name = row.name
         calculation_label = f"{name}_{label}"
-        logging.info(f"-------------------------------")
+        logging.info("-" * 40)
         logging.info(f"Calculating {calculation_label}")
 
         create_folder(calculation_label)
@@ -136,10 +136,10 @@ def optimize_atoms(input_db, opt_db, calculator, calc_type, label, specification
         os.chdir(os.path.join("..", ".."))
 
         if opt_atoms is not None:
-            logging.info(f"\t\t Optimized {calculation_label}!")
+            logging.info(f"\t\tOptimized {calculation_label}!")
         else:
-            logging.info(
-                f"\t\t Error in optimize_atoms for {calculation_label}: atoms is None."
+            logging.error(
+                f"\t\tError in optimize_atoms for {calculation_label}: atoms is None."
             )
 
         # Saves the optimized structure and data to a database.
@@ -154,20 +154,19 @@ def optimize_atoms(input_db, opt_db, calculator, calc_type, label, specification
                 calc_type=calc_type,
             )
             logging.info(
-                f"Wrote optimized structure to database {opt_db} with foreignkey {foreign_key}"
+                f"Wrote optimized structure to database {opt_db} with "
+                f"foreignkey {foreign_key}"
             )
 
         except Exception as e:
-            logging.info(
-                f"\t\t Error in writing to the database for {calculation_label}: {str(e)}"
+            logging.error(
+                f"\t\tError in writing to the database for "
+                f"{calculation_label}: {str(e)}"
             )
 
 
-@hydra.main(version_base=None, config_path="../config/", config_name="config.yaml")
-def my_app(cfg: DictConfig) -> None:
-    print(OmegaConf.to_yaml(cfg))
-    # log.info("Info level message")
-    # log.debug("Debug level message")
+@hydra.main(version_base=None, config_path="../config/", config_name="config.yml")
+def main(cfg: DictConfig) -> None:
 
     # Access configuration parameters
     job = cfg.job
@@ -203,4 +202,4 @@ def my_app(cfg: DictConfig) -> None:
 
 
 if __name__ == "__main__":
-    my_app()
+    main()
