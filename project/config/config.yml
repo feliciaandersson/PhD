@@ -2,11 +2,14 @@
 
 job:
   prefix: cellobiose
-  calculator: dftb
-  specification: GFN2
-  calc_type: sp
-  label: "${job.calculator}_${job.specification}_${job.calc_type}"
+  calculator: vasp
+  functional: PBE
+  basis_set: ""
+  parametrization: ""
+  method: ${job.functional}_${job.basis_set}_${job.parametrization}
+  calc_type: opt
+  label: ${job.calculator}_${job.method}_${job.calc_type}
 
 databases:
-  input_db_path: "./db/input_structure_${job.prefix}.db"
-  opt_db_path: "./db/${job.prefix}_${job.label}_test.db"
+  input_db_path: ./db/input_structure_${job.prefix}.db
+  opt_db_path: ./db/${job.prefix}_${job.label}.db
