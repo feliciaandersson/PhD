@@ -8,11 +8,11 @@ My research focuses on Computational Chemistry. Thus, my project will be particu
 ## Goals
 This is a list of all the things I would like to do, in a somewhat prioritized order. Due to time limitations, I might not be able to finish them all within the timeline of this course.
 
-- [ ] Organize project files and directories logically for better project management and collaboration.
+- [x] Organize project files and directories logically for better project management and collaboration.
 
 - [ ] Improve reproducibility by creating clear instructions for environment setup, using conda.
 
-- [ ] Enhance code readability through consistent code formatting, where I plan to try out [Ruff](https://github.com/astral-sh/ruff).
+- [x] Enhance code readability through consistent code formatting, where I plan to try out [Ruff](https://github.com/astral-sh/ruff).
 
 - [ ] Improve documentation for clear instructions on how to use my code.
 
@@ -28,6 +28,47 @@ This is a list of all the things I would like to do, in a somewhat prioritized o
 
 
 # Results from the Project
+
+
+### File tree
+
+```
+root/
+│
+├── environment.yaml
+├── README.md
+└── project/
+    ├── analysis/
+    │   ├── plot_relative_energies.ipynb
+    │   └── scan.py
+    ├── calculation/
+    │   ├── calculators.py
+    │   └── opt.py
+    ├── config/
+    │   └── config.yaml
+    └── run.sh
+```
+
+### File Descriptions
+
+- **environment.yaml**: This file contains the specifications for creating a conda environment with all the necessary dependencies for the project.
+
+- **README.md**: This is the README file providing an overview of the project, its goals, and instructions for setup and usage.
+
+- **project/**: This directory contains the components of the project.
+
+  - **analysis/**: Contains scripts and notebooks for preparation of data, data analysis and visualization.
+    - **plot_relative_energies.ipynb**: Jupyter notebook for plotting relative energies.
+    - **scan.py**: Script for performing scans.
+  
+  - **calculation/**: Includes scripts for performing calculations.
+    - **calculators.py**: Script for defining different calculators.
+    - **opt.py**: Script for calculations.
+  
+  - **config/**: Contains configuration files.
+    - **config.yaml**: Configuration file for the project.
+
+- **run.sh**: Shell script for executing the project.
 
 ## Prerequisites
 
@@ -68,3 +109,5 @@ Configuration options:
 - databases.input_db_path: Path to the input database with initial structures.
 - databases.opt_db_path: Path to the output database where optimized structures 
   will be saved.
+
+## 

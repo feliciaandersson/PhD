@@ -1,15 +1,13 @@
 # coding=utf-8
 
-import os
 import logging
+import os
 import time
 
-import hydra
-from omegaconf import DictConfig, OmegaConf
-
 import calculators
+import hydra
 from ase.db import connect
-from ase.io import read
+from omegaconf import DictConfig
 
 
 def setup_logging():
@@ -36,15 +34,16 @@ def setup_start_time(label):
 
     return start
 
+
 def set_up_database(db_path):
-    
     if db_path:
         structures_db = connect(db_path)
         logging.info(f"Database read: {structures_db}")
     else:
         raise ValueError("Input and output database path must be provided.")
-    
+
     return structures_db
+
 
 def setup_end_time(start, label):
     """
@@ -82,7 +81,16 @@ def create_folder(calculation_label):
         )
 
 
-def run_calc(calculator, atoms, label, calc_type, functional, basis_set, parametrization, kpts):
+def create_label(prefix, parameters, calc_type):
+    method_label = "_".join(p for p in parameters if p is not None)
+    label = f"{prefix}_{method_label}_{calc_type}"
+
+    return label
+
+
+def run_calc(
+    calculator, atoms, label, calc_type, functional, basis_set, parametrization, kpoints
+):
     """
     Run the calculation using the specified calculator.
 
@@ -102,17 +110,19 @@ def run_calc(calculator, atoms, label, calc_type, functional, basis_set, paramet
     try:
         if calculator.lower() == "dftb":
             opt_atoms = calculators.DFTB_calculator(
-                atoms, label, calc_type, parametrization, kpts,
+                atoms,
+                label,
+                calc_type,
+                parametrization,
+                kpoints,
             )
         elif calculator.lower() == "gaussian":
             opt_atoms = calculators.Gaussian_calculator(
                 atoms, label, calc_type, functional, basis_set
             )
         elif calculator.lower() == "vasp":
-            opt_atoms = calculators.VASP_calculator(
-                atoms, label, calc_type, functional
-            )
-            
+            opt_atoms = calculators.VASP_calculator(atoms, label, calc_type, functional)
+
     except Exception as e:
         logging.error(f"\t\tError in run_calc for {calculator} calculation: {str(e)}")
         return None
@@ -120,7 +130,17 @@ def run_calc(calculator, atoms, label, calc_type, functional, basis_set, paramet
     return opt_atoms
 
 
-def optimize_atoms(input_db, opt_db, calculator, calc_type, label, functional, basis_set, parametrization, kpts):
+def optimize_atoms(
+    input_db,
+    opt_db,
+    calculator,
+    calc_type,
+    label,
+    functional,
+    basis_set,
+    parametrization,
+    kpoints,
+):
     """
     Optimize structures and save them to a new database.
 
@@ -143,15 +163,16 @@ def optimize_atoms(input_db, opt_db, calculator, calc_type, label, functional, b
 
         # Performs geometry optimisation:
         atoms = row.toatoms()
-        opt_atoms = run_calc(calculator, 
-                             atoms, 
-                             calculation_label, 
-                             calc_type, 
-                             functional, 
-                             basis_set, 
-                             parametrization,
-                             kpts,
-                             )
+        opt_atoms = run_calc(
+            calculator,
+            atoms,
+            calculation_label,
+            calc_type,
+            functional,
+            basis_set,
+            parametrization,
+            kpoints,
+        )
 
         os.chdir(os.path.join("..", ".."))
 
@@ -169,10 +190,10 @@ def optimize_atoms(input_db, opt_db, calculator, calc_type, label, functional, b
             opt_db.write(
                 opt_atoms,
                 foreignkey=foreign_key,
-                name = calculation_label,
-                functional = functional, 
-                basis_set = basis_set, 
-                parametrization = parametrization,
+                name=calculation_label,
+                functional=functional,
+                basis_set=basis_set,
+                parametrization=parametrization,
                 calc_type=calc_type,
             )
             logging.info(
@@ -189,35 +210,38 @@ def optimize_atoms(input_db, opt_db, calculator, calc_type, label, functional, b
 
 @hydra.main(version_base=None, config_path="../config/", config_name="config.yaml")
 def main(cfg: DictConfig) -> None:
-
     job = cfg.job
-    databases = cfg.databases
-    calculator = job.calculator
-    functional = job.functional
-    basis_set = job.basis_set
-    kpts = job.kpts
-    parametrization = job.parametrization
-    calc_type = job.calc_type
-    label = job.label
-    input_db_path = databases.input_db_path
-    opt_db_path = databases.opt_db_path
-    
+
+    kpoints_label = "-".join(str(x) for x in job.kpoints if job.kpoints is not None)
+    method_parameters = [
+        job.calculator,
+        job.functional,
+        job.basis_set,
+        job.parametrization,
+        kpoints_label,
+    ]
+
+    label = create_label(job.prefix, method_parameters, job.calc_type)
+
+    input_db_path = cfg.databases.input_db_path
+    opt_db_path = cfg.databases.opt_db_path
+
     setup_logging()
     input_db = set_up_database(input_db_path)
     opt_db = set_up_database(opt_db_path)
 
     start = setup_start_time(label)
-    
+
     optimize_atoms(
         input_db=input_db,
         opt_db=opt_db,
-        calculator=calculator,
-        calc_type=calc_type,
+        calculator=job.calculator,
+        calc_type=job.calc_type,
         label=label,
-        functional = functional,
-        basis_set = basis_set,
-        parametrization = parametrization,
-        kpts = kpts,
+        functional=job.functional,
+        basis_set=job.basis_set,
+        parametrization=job.parametrization,
+        kpoints=tuple(job.kpoints),
     )
 
     end_time = setup_end_time(start, label)

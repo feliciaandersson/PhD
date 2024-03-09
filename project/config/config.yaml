@@ -4,12 +4,10 @@ job:
   prefix: cellobiose
   calculator: vasp
   functional: PBE
-  basis_set: ""
-  parametrization: ""
-  kpts: (1,1,1)
+  basis_set:
+  parametrization:
+  kpoints: [1,1,1]
   calc_type: opt
-  method: ${job.functional}_${job.basis_set}_${job.parametrization}
-  label: ${job.calculator}_${job.method}_${job.calc_type}
 
 databases:
   input_db_path: ./db/input_structure_${job.prefix}.db
