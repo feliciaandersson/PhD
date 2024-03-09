@@ -16,3 +16,4 @@ dependencies:
   - pip:
     - git+https://gitlab.com/ase/ase.git@master
     - hydra-core==1.3.*
+    - directory-tree
