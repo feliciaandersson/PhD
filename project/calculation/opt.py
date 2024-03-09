@@ -9,6 +9,7 @@ from omegaconf import DictConfig, OmegaConf
 
 import calculators
 from ase.db import connect
+from ase.io import read
 
 
 def setup_logging():
@@ -35,6 +36,15 @@ def setup_start_time(label):
 
     return start
 
+def set_up_database(db_path):
+    
+    if db_path:
+        structures_db = connect(db_path)
+        logging.info(f"Database read: {structures_db}")
+    else:
+        raise ValueError("Input and output database path must be provided.")
+    
+    return structures_db
 
 def setup_end_time(start, label):
     """
@@ -72,7 +82,7 @@ def create_folder(calculation_label):
         )
 
 
-def run_calc(calculator, atoms, label, calc_type, specification):
+def run_calc(calculator, atoms, label, calc_type, functional, basis_set, parametrization, kpts):
     """
     Run the calculation using the specified calculator.
 
@@ -92,13 +102,17 @@ def run_calc(calculator, atoms, label, calc_type, specification):
     try:
         if calculator.lower() == "dftb":
             opt_atoms = calculators.DFTB_calculator(
-                atoms, label, calc_type, specification
+                atoms, label, calc_type, parametrization, kpts,
             )
         elif calculator.lower() == "gaussian":
             opt_atoms = calculators.Gaussian_calculator(
-                atoms, label, calc_type, specification
+                atoms, label, calc_type, functional, basis_set
             )
-
+        elif calculator.lower() == "vasp":
+            opt_atoms = calculators.VASP_calculator(
+                atoms, label, calc_type, functional
+            )
+            
     except Exception as e:
         logging.error(f"\t\tError in run_calc for {calculator} calculation: {str(e)}")
         return None
@@ -106,7 +120,7 @@ def run_calc(calculator, atoms, label, calc_type, specification):
     return opt_atoms
 
 
-def optimize_atoms(input_db, opt_db, calculator, calc_type, label, specification):
+def optimize_atoms(input_db, opt_db, calculator, calc_type, label, functional, basis_set, parametrization, kpts):
     """
     Optimize structures and save them to a new database.
 
@@ -120,7 +134,7 @@ def optimize_atoms(input_db, opt_db, calculator, calc_type, label, specification
     """
 
     for row in input_db.select():
-        name = row.name
+        name = getattr(row, "name", "")
         calculation_label = f"{name}_{label}"
         logging.info("-" * 40)
         logging.info(f"Calculating {calculation_label}")
@@ -129,9 +143,15 @@ def optimize_atoms(input_db, opt_db, calculator, calc_type, label, specification
 
         # Performs geometry optimisation:
         atoms = row.toatoms()
-        opt_atoms = run_calc(
-            calculator, atoms, calculation_label, calc_type, specification
-        )
+        opt_atoms = run_calc(calculator, 
+                             atoms, 
+                             calculation_label, 
+                             calc_type, 
+                             functional, 
+                             basis_set, 
+                             parametrization,
+                             kpts,
+                             )
 
         os.chdir(os.path.join("..", ".."))
 
@@ -149,8 +169,10 @@ def optimize_atoms(input_db, opt_db, calculator, calc_type, label, specification
             opt_db.write(
                 opt_atoms,
                 foreignkey=foreign_key,
-                name=calculation_label,
-                specification=specification,
+                name = calculation_label,
+                functional = functional, 
+                basis_set = basis_set, 
+                parametrization = parametrization,
                 calc_type=calc_type,
             )
             logging.info(
@@ -165,36 +187,37 @@ def optimize_atoms(input_db, opt_db, calculator, calc_type, label, specification
             )
 
 
-@hydra.main(version_base=None, config_path="../config/", config_name="config.yml")
+@hydra.main(version_base=None, config_path="../config/", config_name="config.yaml")
 def main(cfg: DictConfig) -> None:
 
-    # Access configuration parameters
     job = cfg.job
     databases = cfg.databases
-
-    prefix = job.prefix
     calculator = job.calculator
-    specification = job.specification
+    functional = job.functional
+    basis_set = job.basis_set
+    kpts = job.kpts
+    parametrization = job.parametrization
     calc_type = job.calc_type
     label = job.label
     input_db_path = databases.input_db_path
     opt_db_path = databases.opt_db_path
-
-    # Setting up databases:
-    input_structures_db = connect(input_db_path)
-    opt_db = connect(opt_db_path)
-
-    # Performs the optimization:
+    
     setup_logging()
-    start = setup_start_time(label)
+    input_db = set_up_database(input_db_path)
+    opt_db = set_up_database(opt_db_path)
 
+    start = setup_start_time(label)
+    
     optimize_atoms(
-        input_db=input_structures_db,
+        input_db=input_db,
         opt_db=opt_db,
         calculator=calculator,
         calc_type=calc_type,
         label=label,
-        specification=specification,
+        functional = functional,
+        basis_set = basis_set,
+        parametrization = parametrization,
+        kpts = kpts,
     )
 
     end_time = setup_end_time(start, label)
