@@ -18,9 +18,9 @@ This is a list of all the things I would like to do, in a somewhat prioritized o
 
 - [ ] Transfer existing or partially completed analysis scripts to Jupyter notebooks for better and more interactive visualization. Evaluate their efficiency, readability, and structure.
 
-- [ ] Incorporate GitHub actions.
+- [ ] ~~Incorporate GitHub actions.~~
 
-- [ ] Implement testing procedures to ensure code reliability.
+- [ ] ~~Implement testing procedures to ensure code reliability.~~
 
 
 
