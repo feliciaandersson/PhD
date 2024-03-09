@@ -34,19 +34,22 @@ This is a list of all the things I would like to do, in a somewhat prioritized o
 
 ```
 root/
-│
 ├── environment.yaml
+├── notebook.ipynb
 ├── README.md
-└── project/
+└── src/
     ├── analysis/
-    │   ├── plot_relative_energies.ipynb
-    │   └── scan.py
+    │   └── plot_relative_energies.ipynb
     ├── calculation/
+    │   ├── __pycache__/
     │   ├── calculators.py
     │   └── opt.py
     ├── config/
     │   └── config.yaml
+    ├── processing/
+    │   └── scan.py
     └── run.sh
+    
 ```
 
 ### File Descriptions
