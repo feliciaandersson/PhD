@@ -6,8 +6,9 @@ job:
   functional: PBE
   basis_set: ""
   parametrization: ""
-  method: ${job.functional}_${job.basis_set}_${job.parametrization}
+  kpts: (1,1,1)
   calc_type: opt
+  method: ${job.functional}_${job.basis_set}_${job.parametrization}
   label: ${job.calculator}_${job.method}_${job.calc_type}
 
 databases:
