@@ -54,24 +54,35 @@ root/
 
 ### File Descriptions
 
-- **environment.yaml**: This file contains the specifications for creating a conda environment with all the necessary dependencies for the project.
+- **environment.yaml**: This file contains the specifications for creating a Conda environment with all the necessary dependencies for the project.
 
 - **README.md**: This is the README file providing an overview of the project, its goals, and instructions for setup and usage.
 
-- **project/**: This directory contains the components of the project.
+- **src/**: This directory contains the source code of the project.
 
-  - **analysis/**: Contains scripts and notebooks for preparation of data, data analysis and visualization.
+  - **analysis/**: Contains scripts and notebooks for data preparation, analysis, and visualization.
+
     - **plot_relative_energies.ipynb**: Jupyter notebook for plotting relative energies.
-    - **scan.py**: Script for performing scans.
-  
+
   - **calculation/**: Includes scripts for performing calculations.
+
     - **calculators.py**: Script for defining different calculators.
     - **opt.py**: Script for calculations.
-  
+
   - **config/**: Contains configuration files.
+
     - **config.yaml**: Configuration file for the project.
 
-- **run.sh**: Shell script for executing the project.
+  - **processing/**: Contains scripts for processing data.
+
+    - **scan.py**: Script for performing scans.
+
+  - **run.sh**: Shell script for executing the project.
+
+  - **utils/**: Contains utility scripts.
+
+    - **create_directory_tree.ipynb**: Jupyter notebook for creating a directory tree.
+
 
 ## Prerequisites
 
