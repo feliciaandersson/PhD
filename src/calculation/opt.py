@@ -223,8 +223,9 @@ def main(cfg: DictConfig) -> None:
 
     label = create_label(job.prefix, method_parameters, job.calc_type)
 
-    input_db_path = cfg.databases.input_db_path
-    opt_db_path = cfg.databases.opt_db_path
+    db_path = cfg.databases.db_path
+    input_db_path = os.path.join(db_path, cfg.databases.input_db_name)
+    opt_db_path = os.path.join(db_path, f"{job.prefix}_{job.calculator}.db")
 
     setup_logging()
     input_db = set_up_database(input_db_path)
