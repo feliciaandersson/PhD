@@ -35,7 +35,6 @@ This is a list of all the things I would like to do, in a somewhat prioritized o
 ```
 root/
 ├── environment.yaml
-├── notebook.ipynb
 ├── README.md
 └── src/
     ├── analysis/
@@ -48,8 +47,9 @@ root/
     │   └── config.yaml
     ├── processing/
     │   └── scan.py
-    └── run.sh
-    
+    ├── run.sh
+    └── utils/
+        └── create_directory_tree.ipynb
 ```
 
 ### File Descriptions
