@@ -2,12 +2,12 @@
 
 job:
   prefix: cellobiose
-  calculator: vasp
+  calculator: vasp # vasp, gaussian, dftb
   functional: PBE
   basis_set:
-  parametrization:
+  parametrization: # for dftb: GFN1, GFN2
   kpoints: [1,1,1]
-  calc_type: opt
+  calc_type: opt # opt, sp
 
 databases:
   db_path: /proj/teoroo/users/x_felan/calculations/DFTB/DFTB_crystals/beta/db/
