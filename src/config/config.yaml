@@ -10,5 +10,5 @@ job:
   calc_type: opt # opt, sp
 
 databases:
-  db_path: /proj/teoroo/users/x_felan/calculations/DFTB/DFTB_crystals/beta/db/
-  input_db_name: input_structures_beta.db
+  db_path: /path/to/db/
+  input_db_name: database.db
