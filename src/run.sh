@@ -8,6 +8,7 @@
 #SBATCH --job-name=vasp
 #SBATCH --nodes=1
 #SBATCH --time=00:01:00
+#SBATCH --output=./outputs/slurm/%j.out
 
 # Set neccessary requirements
 ulimit -s unlimited
