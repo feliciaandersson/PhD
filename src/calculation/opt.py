@@ -3,6 +3,7 @@
 import logging
 import os
 import time
+from datetime import datetime
 
 import calculators
 import hydra
@@ -21,18 +22,23 @@ def setup_logging():
     )
 
 
-def setup_start_time(label):
+def format_time(timestamp):
+    """Format time to a readable string."""
+    return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def setup_start_time(label, db_path):
     """Setup start time for logging.
 
     Args:
     - label (str): Label for the job.
     """
-    start_time = time.strftime("%H:%M:%S", time.localtime())
-    start = time.time()
+    start_time = time.time()
     logging.info("-" * 80)
-    logging.info(f"Starting a new job with label {label} at {start_time}")
+    logging.info(f"Starting a new job with label {label} at {format_time(start_time)}")
+    logging.info(f"Path: {db_path}")
 
-    return start
+    return start_time
 
 
 def set_up_database(db_path):
@@ -53,10 +59,12 @@ def setup_end_time(start, label):
     - start (float): Start time.
     - label (str): Label for the job.
     """
-    end_time = time.strftime("%H:%M:%S", time.localtime())
-    end = time.time()
-    logging.info(f"Ending job with label {label} at {end_time}.")
-    logging.info(f"Job with label {label} took {end-start}.")
+    end_time = time.time()
+    formatted_job_time = time.strftime("%H:%M:%S", time.gmtime(end_time - start))
+    logging.info(f"Ending job with label {label} at {format_time(end_time)}.")
+    logging.info(
+        f"Job with label {label} started at {format_time(start)} and took {formatted_job_time}."
+    )
 
     return end_time
 
@@ -217,21 +225,24 @@ def main(cfg: DictConfig) -> None:
         job.calculator,
         job.functional,
         job.basis_set,
-        job.parametrization,
+        job.parametrization.upper(),
         kpoints_label,
     ]
 
     label = create_label(job.prefix, method_parameters, job.calc_type)
 
+    setup_logging()
+
     db_path = cfg.databases.db_path
+    os.chdir(db_path)
+    os.chdir("../")
     input_db_path = os.path.join(db_path, cfg.databases.input_db_name)
     opt_db_path = os.path.join(db_path, f"{job.prefix}_{job.calculator}.db")
 
-    setup_logging()
     input_db = set_up_database(input_db_path)
     opt_db = set_up_database(opt_db_path)
 
-    start = setup_start_time(label)
+    start = setup_start_time(label, db_path)
 
     optimize_atoms(
         input_db=input_db,
