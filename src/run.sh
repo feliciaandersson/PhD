@@ -1,14 +1,14 @@
 #!/bin/bash
 
-#SBATCH -A naiss2023-1-37
+#SBATCH -A account
 #SBATCH --mail-type=BEGIN,END
-#SBATCH --mail-user=felicia.e.andersson@kemi.uu.se
+#SBATCH --mail-user=email
 #SBATCH --cpus-per-task=32
 #SBATCH --ntasks-per-node=1
-#SBATCH --job-name=vasp
+#SBATCH --job-name=name
 #SBATCH --nodes=1
-#SBATCH --time=00:01:00
-#SBATCH --output=./outputs/slurm/%j.out
+#SBATCH --time=00:02:00
+#SBATCH --output=slurm-%x.%j.out
 
 # Set neccessary requirements
 ulimit -s unlimited
