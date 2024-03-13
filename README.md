@@ -93,17 +93,17 @@ root/
 ## Installation
 
 To install the necessary dependencies, create a conda environment using the 
-provided `environment.yml` file:
+provided `environment.yaml` file:
 
 ```bash
-conda env create -f environment.yml
+conda env create -f environment.yaml
 ```
 
-To update the environment if you have made changes to the  `environment.yml` 
+To update the environment if you have made changes to the  `environment.yaml` 
 file, use:
 
 ```bash
-conda env update -f environment.yml --prune
+conda env update -f environment.yaml --prune
 ```
 
 ## Usage
@@ -129,8 +129,11 @@ Below is a brief explanation of each parameter:
 - **input_db_name**: The name of the input database.
 
 
-### Submitting the Job (run.sh)
-At tetralith, use the provided batch script run.sh to submit your job to the SLURM queue. 
+### Submitting the Job to the SLURM queue(run.sh)
+To submit your job to the SLURM queue on Tetralith, use the provided bash job script `run.sh`. 
+You may need to customize certain details in the script. At the minimum, ensure to specify the 
+name of the account you use to perform computations, as well as an appropriate job time and job name.
+
 You can submit the job by executing the following command in the terminal:
 
 ```bash
@@ -140,5 +143,13 @@ sbatch run.sh
 Monitor the job status using SLURM commands such as squeue.
 
 ```bash
-squeue -u $USER
+squeue -l -u $USER
+```
+
+### Executing the code with Python
+If you want to run the code at another computer that does not use the SLURM queue,
+you can start the job by executing the following command in a Python terminal:
+
+```python
+python opt.py
 ```
