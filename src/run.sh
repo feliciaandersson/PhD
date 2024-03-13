@@ -1,13 +1,14 @@
 #!/bin/bash
 
-#SBATCH -A account
+#SBATCH -A <your_account_name>
+#SBATCH --time=01:00:00  # Replace with an appropriate time limit
+#SBATCH --job-name=job_name  # Replace with a descriptive job name
+#SBATCH --mail-user=<your_email_adress>
+
 #SBATCH --mail-type=BEGIN,END
-#SBATCH --mail-user=email
 #SBATCH --cpus-per-task=32
 #SBATCH --ntasks-per-node=1
-#SBATCH --job-name=name
 #SBATCH --nodes=1
-#SBATCH --time=00:02:00
 #SBATCH --output=slurm-%x.%j.out
 
 # Set neccessary requirements
