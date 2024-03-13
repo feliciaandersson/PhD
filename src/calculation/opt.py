@@ -36,7 +36,6 @@ def setup_start_time(label, db_path):
     start_time = time.time()
     logging.info("-" * 80)
     logging.info(f"Starting a new job with label {label} at {format_time(start_time)}")
-    logging.info(f"Path: {db_path}")
 
     return start_time
 
@@ -44,7 +43,6 @@ def setup_start_time(label, db_path):
 def set_up_database(db_path):
     if db_path:
         structures_db = connect(db_path)
-        logging.info(f"Database read: {structures_db}")
     else:
         raise ValueError("Input and output database path must be provided.")
 
@@ -91,13 +89,24 @@ def create_folder(calculation_label):
 
 def create_label(prefix, parameters, calc_type):
     method_label = "_".join(p for p in parameters if p is not None)
+    while "__" in method_label:
+        method_label = method_label.replace("__", "_")
+
     label = f"{prefix}_{method_label}_{calc_type}"
 
     return label
 
 
 def run_calc(
-    calculator, atoms, label, calc_type, functional, basis_set, parametrization, kpoints
+    calculator,
+    atoms,
+    label,
+    calc_type,
+    functional,
+    basis_set,
+    parametrization,
+    kpoints,
+    lattice_opt,
 ):
     """
     Run the calculation using the specified calculator.
@@ -118,18 +127,16 @@ def run_calc(
     try:
         if calculator.lower() == "dftb":
             opt_atoms = calculators.DFTB_calculator(
-                atoms,
-                label,
-                calc_type,
-                parametrization,
-                kpoints,
+                atoms, label, calc_type, parametrization, kpoints, lattice_opt
             )
         elif calculator.lower() == "gaussian":
             opt_atoms = calculators.Gaussian_calculator(
                 atoms, label, calc_type, functional, basis_set
             )
         elif calculator.lower() == "vasp":
-            opt_atoms = calculators.VASP_calculator(atoms, label, calc_type, functional)
+            opt_atoms = calculators.VASP_calculator(
+                atoms, label, calc_type, functional, kpoints, lattice_opt
+            )
 
     except Exception as e:
         logging.error(f"\t\tError in run_calc for {calculator} calculation: {str(e)}")
@@ -148,6 +155,7 @@ def optimize_atoms(
     basis_set,
     parametrization,
     kpoints,
+    lattice_opt,
 ):
     """
     Optimize structures and save them to a new database.
@@ -180,6 +188,7 @@ def optimize_atoms(
             basis_set,
             parametrization,
             kpoints,
+            lattice_opt,
         )
 
         os.chdir(os.path.join("..", ".."))
@@ -199,10 +208,8 @@ def optimize_atoms(
                 opt_atoms,
                 foreignkey=foreign_key,
                 name=calculation_label,
-                functional=functional,
-                basis_set=basis_set,
-                parametrization=parametrization,
                 calc_type=calc_type,
+                lattice_opt=lattice_opt,
             )
             logging.info(
                 f"Wrote optimized structure to database {opt_db} with "
@@ -220,7 +227,7 @@ def optimize_atoms(
 def main(cfg: DictConfig) -> None:
     job = cfg.job
 
-    kpoints_label = "-".join(str(x) for x in job.kpoints if job.kpoints is not None)
+    kpoints_label = "-".join(str(x) for x in job.kpoints) if job.kpoints else ""
     method_parameters = [
         job.calculator,
         job.functional,
@@ -232,17 +239,17 @@ def main(cfg: DictConfig) -> None:
     label = create_label(job.prefix, method_parameters, job.calc_type)
 
     setup_logging()
+    start = setup_start_time(label, cfg.paths.db_path)
 
-    db_path = cfg.databases.db_path
-    os.chdir(db_path)
-    os.chdir("../")
-    input_db_path = os.path.join(db_path, cfg.databases.input_db_name)
-    opt_db_path = os.path.join(db_path, f"{job.prefix}_{job.calculator}.db")
+    os.chdir(cfg.paths.output_path)
+    logging.info(f"Output path: {cfg.paths.output_path}")
+    input_db_path = os.path.join(cfg.paths.db_path, cfg.paths.input_db_name)
+    opt_db_path = os.path.join(cfg.paths.db_path, f"{job.prefix}_{job.calculator}.db")
 
     input_db = set_up_database(input_db_path)
+    logging.info(f"Input database: {input_db_path}")
     opt_db = set_up_database(opt_db_path)
-
-    start = setup_start_time(label, db_path)
+    logging.info(f"Output database: {opt_db_path}")
 
     optimize_atoms(
         input_db=input_db,
@@ -253,7 +260,8 @@ def main(cfg: DictConfig) -> None:
         functional=job.functional,
         basis_set=job.basis_set,
         parametrization=job.parametrization,
-        kpoints=tuple(job.kpoints),
+        kpoints=tuple(job.kpoints) if job.kpoints is not None else (),
+        lattice_opt=job.lattice_opt,
     )
 
     end_time = setup_end_time(start, label)

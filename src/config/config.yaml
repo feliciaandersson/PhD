@@ -1,14 +1,16 @@
 # Hydra Configuration File
 
 job:
-  prefix: cellobiose
-  calculator: vasp # vasp, gaussian, dftb
-  functional: PBE
+  prefix: descriptive_name
+  calculator: DFTB # vasp, gaussian, dftb
+  functional:
   basis_set:
-  parametrization: # for dftb: GFN1, GFN2
+  parametrization: GFN2 # for dftb: GFN1, GFN2
   kpoints: [1,1,1]
-  calc_type: opt # opt, sp
+  lattice_opt: "no"
+  calc_type: sp # opt, sp
 
-databases:
+paths:
+  output_path: /path/to/output/directory/
   db_path: /path/to/db/
-  input_db_name: database.db
+  input_db_name: database_name.db
