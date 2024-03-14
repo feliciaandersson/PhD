@@ -36,6 +36,7 @@ def setup_start_time(label, db_path):
     start_time = time.time()
     logging.info("-" * 80)
     logging.info(f"Starting a new job with label {label} at {format_time(start_time)}")
+    logging.info(f"Path: {db_path}")
 
     return start_time
 
@@ -43,6 +44,7 @@ def setup_start_time(label, db_path):
 def set_up_database(db_path):
     if db_path:
         structures_db = connect(db_path)
+        logging.info(f"Database read: {structures_db}")
     else:
         raise ValueError("Input and output database path must be provided.")
 
