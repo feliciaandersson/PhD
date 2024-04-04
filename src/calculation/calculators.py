@@ -36,7 +36,7 @@ def DFTB_calculator(atoms, label, calc_type, parametrization, kpts, lattice_opt)
     opt_params = {
         "Driver_": "GeometryOptimization",
         "Driver_Optimiser": "Rational {}",
-        "Driver_LatticeOpt": "No",
+        "Driver_LatticeOpt": lattice_opt,
     }
 
     if calc_type.lower() == "opt":
