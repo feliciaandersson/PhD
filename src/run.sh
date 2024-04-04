@@ -30,7 +30,7 @@ python ./calculation/opt.py $(cat <<EOF
     job.functional="functional"
     job.dispersion_correction="disp_corr"
     job.basis_set="basis_set"
-    job.parametrization=""
+    job.parametrization="parametrization"
     job.kpoints=[1,1,1]
     job.encut=500
     job.lattice_opt="no"
