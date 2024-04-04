@@ -24,4 +24,20 @@ export VASP_PP_PATH=/proj/teoroo/users/x_felan/VASP/input/
 module add VASP/5.4.4.16052018-nsc2-intel-2018a-eb
 
 # Run the calculation
-python ./calculation/opt.py
+python ./calculation/opt.py $(cat <<EOF
+    job.prefix=a_descrptive_name
+    job.calculator="calculator"
+    job.functional="functional"
+    job.dispersion_correction="disp_corr"
+    job.basis_set="basis_set"
+    job.parametrization=""
+    job.kpoints=[1,1,1]
+    job.encut=500
+    job.lattice_opt="no"
+    job.calc_type=opt
+
+    paths.output_path=
+    paths.db_path=./db/
+    paths.input_db_name=database.db
+EOF
+)

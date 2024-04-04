@@ -1,16 +1,18 @@
 # Hydra Configuration File
 
 job:
-  prefix: descriptive_name
-  calculator: DFTB # vasp, gaussian, dftb
-  functional:
-  basis_set:
-  parametrization: GFN2 # for dftb: GFN1, GFN2
-  kpoints: [1,1,1]
-  lattice_opt: "no"
-  calc_type: sp # opt, sp
+  prefix:
+  calculator:                 # DFTB, Gaussian, Vasp
+  functional:                 # PBE, RPBE, PBEsol, B3LYP or calculator-specific options
+  basis_set:                  # for Gaussian: calculator-specific options
+  parametrization:            # for DFTB: "GFN1", "GFN2"
+  kpoints:                    # [1,1,1]
+  encut:                      # VASP default: 500
+  lattice_opt:                # "yes", "no"
+  dispersion_correction:      
+  calc_type: opt              # "sp", "opt"
 
 paths:
-  output_path: /path/to/output/directory/
-  db_path: /path/to/db/
-  input_db_name: database_name.db
+  output_path:                # Default: parent directory to db_path
+  db_path: 
+  input_db_name:

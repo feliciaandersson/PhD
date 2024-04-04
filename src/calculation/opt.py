@@ -91,10 +91,14 @@ def create_folder(calculation_label):
 
 def create_label(prefix, parameters, calc_type):
     method_label = "_".join(p for p in parameters if p is not None)
-    while "__" in method_label:
-        method_label = method_label.replace("__", "_")
 
     label = f"{prefix}_{method_label}_{calc_type}"
+
+    while "__" in label:
+        label = label.replace("__", "_")
+
+    if label.startswith("_"):
+        label = label[1:]
 
     return label
 
@@ -105,9 +109,11 @@ def run_calc(
     label,
     calc_type,
     functional,
+    dispersion_correction,
     basis_set,
     parametrization,
     kpoints,
+    cutoff,
     lattice_opt,
 ):
     """
@@ -133,11 +139,18 @@ def run_calc(
             )
         elif calculator.lower() == "gaussian":
             opt_atoms = calculators.Gaussian_calculator(
-                atoms, label, calc_type, functional, basis_set
+                atoms, label, calc_type, functional, dispersion_correction, basis_set
             )
         elif calculator.lower() == "vasp":
             opt_atoms = calculators.VASP_calculator(
-                atoms, label, calc_type, functional, kpoints, lattice_opt
+                atoms,
+                label,
+                calc_type,
+                functional,
+                dispersion_correction,
+                kpoints,
+                cutoff,
+                lattice_opt,
             )
 
     except Exception as e:
@@ -154,9 +167,11 @@ def optimize_atoms(
     calc_type,
     label,
     functional,
+    dispersion_correction,
     basis_set,
     parametrization,
     kpoints,
+    cutoff,
     lattice_opt,
 ):
     """
@@ -187,9 +202,11 @@ def optimize_atoms(
             calculation_label,
             calc_type,
             functional,
+            dispersion_correction,
             basis_set,
             parametrization,
             kpoints,
+            cutoff,
             lattice_opt,
         )
 
@@ -211,7 +228,6 @@ def optimize_atoms(
                 foreignkey=foreign_key,
                 name=calculation_label,
                 calc_type=calc_type,
-                lattice_opt=lattice_opt,
             )
             logging.info(
                 f"Wrote optimized structure to database {opt_db} with "
@@ -230,11 +246,16 @@ def main(cfg: DictConfig) -> None:
     job = cfg.job
 
     kpoints_label = "-".join(str(x) for x in job.kpoints) if job.kpoints else ""
+    parametrization = (
+        job.parametrization.upper() if job.parametrization is not None else None
+    )
     method_parameters = [
         job.calculator,
         job.functional,
+        job.dispersion_correction,
         job.basis_set,
-        job.parametrization.upper(),
+        str(job.encut),
+        parametrization,
         kpoints_label,
     ]
 
@@ -243,10 +264,18 @@ def main(cfg: DictConfig) -> None:
     setup_logging()
     start = setup_start_time(label, cfg.paths.db_path)
 
-    os.chdir(cfg.paths.output_path)
-    logging.info(f"Output path: {cfg.paths.output_path}")
     input_db_path = os.path.join(cfg.paths.db_path, cfg.paths.input_db_name)
-    opt_db_path = os.path.join(cfg.paths.db_path, f"{job.prefix}_{job.calculator}.db")
+    opt_db_path = os.path.join(
+        cfg.paths.db_path, f"{job.prefix}_{job.calculator}_{job.calc_type}.db"
+    )
+    if os.path.exists(cfg.paths.output_path):
+        output_path = cfg.paths.output_path
+    else:
+        output_path = os.path.abspath(os.path.join(cfg.paths.db_path, os.pardir))
+
+    os.makedirs(output_path, exist_ok=True)
+    os.chdir(output_path)
+    logging.info(f"Output path: {output_path}")
 
     input_db = set_up_database(input_db_path)
     logging.info(f"Input database: {input_db_path}")
@@ -260,9 +289,11 @@ def main(cfg: DictConfig) -> None:
         calc_type=job.calc_type,
         label=label,
         functional=job.functional,
+        dispersion_correction=job.dispersion_correction,
+        parametrization=parametrization,
         basis_set=job.basis_set,
-        parametrization=job.parametrization,
         kpoints=tuple(job.kpoints) if job.kpoints is not None else (),
+        cutoff=job.encut,
         lattice_opt=job.lattice_opt,
     )
 

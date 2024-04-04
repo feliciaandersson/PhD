@@ -51,7 +51,9 @@ def DFTB_calculator(atoms, label, calc_type, parametrization, kpts, lattice_opt)
     return atoms
 
 
-def Gaussian_calculator(atoms, label, calc_type, functional, basis_set):
+def Gaussian_calculator(
+    atoms, label, calc_type, functional, dispersion_correction, basis_set
+):
     """
     Run a Gaussian calculation.
 
@@ -78,8 +80,10 @@ def Gaussian_calculator(atoms, label, calc_type, functional, basis_set):
         nprocshared="12",
         xc=functional,
         basis=basis_set,
-        empiricaldispersion="GD3",
-        scf="maxcycle=200",
+        empiricaldispersion="GD3"
+        if dispersion_correction.upper() in ["D3", "GD3"]
+        else 0,
+        scf="maxcycle=500",
         chk=f"{label}.chk",
         pop="chelpg",
         command=f"{gaussian_executable} < PREFIX.com > PREFIX.log",
@@ -97,7 +101,16 @@ def Gaussian_calculator(atoms, label, calc_type, functional, basis_set):
     return atoms
 
 
-def VASP_calculator(atoms, label, calc_type, functional, kpts, lattice_opt):
+def VASP_calculator(
+    atoms,
+    label,
+    calc_type,
+    functional,
+    dispersion_correction,
+    kpts,
+    cutoff,
+    lattice_opt,
+):
     """
     Run a VASP calculation.
 
@@ -112,9 +125,15 @@ def VASP_calculator(atoms, label, calc_type, functional, kpts, lattice_opt):
         ase.Atoms: The atomic structure with calculation results.
     """
 
-    nsw = 500 if calc_type.lower() == "opt" else 1
-    # gga = "PE" if functional.upper() == "PBE" else ""
-    isif = 3 if lattice_opt == "yes" else 2
+    gga = (
+        "PE"
+        if functional.upper() == "PBE"
+        else "RP"
+        if functional.upper() == "RPBE"
+        else "PS"
+        if functional.upper() == "PBESOL"
+        else ""
+    )
 
     calc = Vasp(
         atoms=atoms,
@@ -127,18 +146,18 @@ def VASP_calculator(atoms, label, calc_type, functional, kpts, lattice_opt):
         istart=1,
         icharg=1,
         ispin=1,
-        ivdw=11,
+        ivdw=11 if dispersion_correction.upper() in ["D3", "GD3"] else 0,
         kpts=kpts,
         lorbit=None,
         ediff=0.1e-06,
         ediffg=-0.1e-2,
         nelm=600,
-        encut=550.000000,
+        encut=cutoff if cutoff else 500,
         sigma=0.05,
         ismear=0,
-        nsw=nsw,
+        nsw=500 if calc_type.lower() == "opt" else 1,
         ibrion=2,
-        isif=isif,
+        isif=3 if lattice_opt == "yes" else 2,
     )
 
     atoms.calc = calc
