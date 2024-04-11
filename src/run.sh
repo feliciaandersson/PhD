@@ -25,6 +25,7 @@ module add VASP/5.4.4.16052018-nsc2-intel-2018a-eb
 
 # Run the calculation
 python ./calculation/opt.py $(cat <<EOF
+    job.restart=False
     job.prefix=a_descrptive_name
     job.calculator="calculator"
     job.functional="functional"

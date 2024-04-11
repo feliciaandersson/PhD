@@ -1,18 +1,19 @@
 # Hydra Configuration File
 
 job:
+  restart: False              # Specify whether to restart the calculation (True or False), (Default: False)
   prefix:
   calculator:                 # DFTB, Gaussian, Vasp
   functional:                 # PBE, RPBE, PBEsol, B3LYP or calculator-specific options
   basis_set:                  # for Gaussian: calculator-specific options
-  parametrization:            # for DFTB: "GFN1", "GFN2"
-  kpoints:                    # [1,1,1]
-  encut:                      # VASP default: 500
+  parametrization:            # Specify the parametrization for DFTB ("GFN1", "GFN2")
+  kpoints: []                 # Specify the k-points for the calculation (e.g., [1,1,1])
+  encut:                      # Specify the energy cutoff for VASP (default: 500)
   lattice_opt:                # "yes", "no"
   dispersion_correction:      
   calc_type: opt              # "sp", "opt"
 
 paths:
-  output_path:                # Default: parent directory to db_path
+  output_path:                # Default: parent directory of db_path
   db_path: 
   input_db_name:

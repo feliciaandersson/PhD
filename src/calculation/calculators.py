@@ -7,7 +7,9 @@ from ase.calculators.gaussian import Gaussian, GaussianOptimizer
 from ase.calculators.vasp import Vasp
 
 
-def DFTB_calculator(atoms, label, calc_type, parametrization, kpts, lattice_opt):
+def DFTB_calculator(
+    restart, atoms, label, calc_type, parametrization, kpts, lattice_opt
+):
     """
     Run a DFTB calculation.
 
@@ -36,7 +38,7 @@ def DFTB_calculator(atoms, label, calc_type, parametrization, kpts, lattice_opt)
     opt_params = {
         "Driver_": "GeometryOptimization",
         "Driver_Optimiser": "Rational {}",
-        "Driver_LatticeOpt": lattice_opt,
+        "Driver_LatticeOpt": lattice_opt if lattice_opt else "No",
     }
 
     if calc_type.lower() == "opt":
@@ -52,7 +54,7 @@ def DFTB_calculator(atoms, label, calc_type, parametrization, kpts, lattice_opt)
 
 
 def Gaussian_calculator(
-    atoms, label, calc_type, functional, dispersion_correction, basis_set
+    restart, atoms, label, calc_type, functional, dispersion_correction, basis_set
 ):
     """
     Run a Gaussian calculation.
@@ -69,10 +71,13 @@ def Gaussian_calculator(
     """
 
     # Check if Gaussian executable is provided as an environment variable
-    gaussian_executable = os.environ.get("ASE_GAUSSIAN_COMMAND")
+    gaussian_executable = os.environ.get("ASE_GAUSSIAN_COMMAND", "g16")
 
-    if not gaussian_executable:
-        gaussian_executable = "g16"
+    calc_params = (
+        {"empiricaldispersion": "GD3"}
+        if dispersion_correction.upper() in ["D3", "GD3"]
+        else {}
+    )
 
     calc = Gaussian(
         label=label,
@@ -80,13 +85,11 @@ def Gaussian_calculator(
         nprocshared="12",
         xc=functional,
         basis=basis_set,
-        empiricaldispersion="GD3"
-        if dispersion_correction.upper() in ["D3", "GD3"]
-        else 0,
         scf="maxcycle=500",
         chk=f"{label}.chk",
-        pop="chelpg",
+        # pop="chelpg",
         command=f"{gaussian_executable} < PREFIX.com > PREFIX.log",
+        **calc_params,
     )
 
     atoms.calc = calc
@@ -102,6 +105,7 @@ def Gaussian_calculator(
 
 
 def VASP_calculator(
+    restart,
     atoms,
     label,
     calc_type,
@@ -125,24 +129,15 @@ def VASP_calculator(
         ase.Atoms: The atomic structure with calculation results.
     """
 
-    gga = (
-        "PE"
-        if functional.upper() == "PBE"
-        else "RP"
-        if functional.upper() == "RPBE"
-        else "PS"
-        if functional.upper() == "PBESOL"
-        else ""
-    )
-
     calc = Vasp(
+        restart=restart,
         atoms=atoms,
         label=label,
         txt="vasp_out",
         command="mpprun vasp_std",
         algo="normal",
-        xc=functional,
-        prec="ACCURATE",
+        xc=functional.lower(),
+        prec="LOW",
         istart=1,
         icharg=1,
         ispin=1,

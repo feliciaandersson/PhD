@@ -28,10 +28,14 @@ def format_time(timestamp):
 
 
 def setup_start_time(label, db_path):
-    """Setup start time for logging.
+    """Set up the start time for logging.
 
     Args:
-    - label (str): Label for the job.
+        label (str): The label for the job.
+        db_path (str): The path of the database.
+
+    Returns:
+        start_time (float): The start time.
     """
     start_time = time.time()
     logging.info("-" * 80)
@@ -42,6 +46,15 @@ def setup_start_time(label, db_path):
 
 
 def set_up_database(db_path):
+    """Set up the database connection.
+
+    Args:
+        db_path (str): The path of the database.
+
+    Returns:
+        structures_db (ase.db.Database): The database connection.
+    """
+
     if db_path:
         structures_db = connect(db_path)
         logging.info(f"Database read: {structures_db}")
@@ -90,6 +103,17 @@ def create_folder(calculation_label):
 
 
 def create_label(prefix, parameters, calc_type):
+    """Create a label for a calculation.
+
+    Args:
+        prefix (str): The prefix for the label.
+        parameters (list): The parameters for the label.
+        calc_type (str): The type of calculation.
+
+    Returns:
+        label (str): The created label.
+    """
+
     method_label = "_".join(p for p in parameters if p is not None)
 
     label = f"{prefix}_{method_label}_{calc_type}"
@@ -104,6 +128,7 @@ def create_label(prefix, parameters, calc_type):
 
 
 def run_calc(
+    restart,
     calculator,
     atoms,
     label,
@@ -116,18 +141,24 @@ def run_calc(
     cutoff,
     lattice_opt,
 ):
-    """
-    Run the calculation using the specified calculator.
+    """Run a calculation using the specified calculator.
 
     Args:
-    - calculator (str): Name of the calculator.
-    - atoms: Atoms object retrieved from a database.
-    - label (str): Label of the structure.
-    - calc_type (str): Calculation type, opt or sp.
-    - specification (str): Parametrisation or basis set.
+        restart (bool): Whether to restart the calculation.
+        calculator (str): The name of the calculator.
+        atoms: The Atoms object retrieved from a database.
+        label (str): The label of the structure.
+        calc_type (str): The type of calculation (opt or sp).
+        functional (str): The functional for the calculation.
+        dispersion_correction (str): The dispersion correction method.
+        basis_set (str): The basis set for the calculation.
+        parametrization (str): The parametrization for the calculation.
+        kpoints (tuple): The k-points for the calculation.
+        cutoff (float): The cutoff energy for the calculation.
+        lattice_opt (bool): Whether to perform lattice optimization.
 
     Returns:
-    - opt_atoms: Optimized atoms object.
+        Atoms: The optimized Atoms object.
     """
 
     logging.info(f"\t\tPerforming an {calc_type} calculation in {calculator}")
@@ -135,14 +166,21 @@ def run_calc(
     try:
         if calculator.lower() == "dftb":
             opt_atoms = calculators.DFTB_calculator(
-                atoms, label, calc_type, parametrization, kpoints, lattice_opt
+                restart, atoms, label, calc_type, parametrization, kpoints, lattice_opt
             )
         elif calculator.lower() == "gaussian":
             opt_atoms = calculators.Gaussian_calculator(
-                atoms, label, calc_type, functional, dispersion_correction, basis_set
+                restart,
+                atoms,
+                label,
+                calc_type,
+                functional,
+                dispersion_correction,
+                basis_set,
             )
         elif calculator.lower() == "vasp":
             opt_atoms = calculators.VASP_calculator(
+                restart,
                 atoms,
                 label,
                 calc_type,
@@ -161,6 +199,7 @@ def run_calc(
 
 
 def optimize_atoms(
+    restart,
     input_db,
     opt_db,
     calculator,
@@ -178,17 +217,23 @@ def optimize_atoms(
     Optimize structures and save them to a new database.
 
     Args:
-    - input_db: Input database with input structure atoms objects.
-    - opt_db: Database with optimized structure atoms objects.
-    - calculator (str): Calculator name.
-    - calc_type (str): Calculation type, sp (=single-point) or opt (=optimization).
-    - label (str): Label for the new structures.
-    - specification (str): Parametrisation or basis set.
+        restart (bool): Whether to restart the calculation.
+        input_db (ase.db.Database): The input database with input structure Atoms objects.
+        opt_db (ase.db.Database): The database with optimized structure Atoms objects.
+        calculator (str): The name of the calculator.
+        calc_type (str): The type of calculation (sp or opt).
+        label (str): The label for the new structures.
+        functional (str): The functional for the calculation.
+        dispersion_correction (str): The dispersion correction method.
+        basis_set (str): The basis set for the calculation.
+        parametrization (str): The parametrization for the calculation.
+        kpoints (tuple): The k-points for the calculation.
+        cutoff (float): The cutoff energy for the calculation.
+        lattice_opt (bool): Whether to perform lattice optimization.
     """
 
     for row in input_db.select():
-        name = getattr(row, "name", "")
-        calculation_label = f"{name}_{label}"
+        calculation_label = label
         logging.info("-" * 40)
         logging.info(f"Calculating {calculation_label}")
 
@@ -197,6 +242,7 @@ def optimize_atoms(
         # Performs geometry optimisation:
         atoms = row.toatoms()
         opt_atoms = run_calc(
+            restart,
             calculator,
             atoms,
             calculation_label,
@@ -243,6 +289,13 @@ def optimize_atoms(
 
 @hydra.main(version_base=None, config_path="../config/", config_name="config.yaml")
 def main(cfg: DictConfig) -> None:
+    """
+    The main function to execute the job.
+
+    Args:
+        cfg (DictConfig): The configuration setup for the job.
+    """
+
     job = cfg.job
 
     kpoints_label = "-".join(str(x) for x in job.kpoints) if job.kpoints else ""
@@ -283,6 +336,7 @@ def main(cfg: DictConfig) -> None:
     logging.info(f"Output database: {opt_db_path}")
 
     optimize_atoms(
+        restart=job.restart,
         input_db=input_db,
         opt_db=opt_db,
         calculator=job.calculator,
@@ -298,7 +352,7 @@ def main(cfg: DictConfig) -> None:
     )
 
     end_time = setup_end_time(start, label)
-    print(f"Ending job with label {label} at {end_time}")
+    print(f"Ending job with label {label} at {format_time(end_time)}.")
 
 
 if __name__ == "__main__":
