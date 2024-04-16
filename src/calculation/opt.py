@@ -39,7 +39,9 @@ def setup_start_time(label, db_path):
     """
     start_time = time.time()
     logging.info("-" * 80)
-    logging.info(f"Starting a new job with label {label} at {format_time(start_time)}")
+    logging.info(
+        f"Starting a new job {os.environ.get('SLURM_JOB_ID')} with label {label} at {format_time(start_time)}"
+    )
     logging.info(f"Path: {db_path}")
 
     return start_time
@@ -233,11 +235,13 @@ def optimize_atoms(
     """
 
     for row in input_db.select():
-        calculation_label = label
-        logging.info("-" * 40)
-        logging.info(f"Calculating {calculation_label}")
+        if row.name:
+            label = f"{label}_{row.name}"
 
-        create_folder(calculation_label)
+        logging.info("-" * 40)
+        logging.info(f"Calculating {label}")
+
+        create_folder(label)
 
         # Performs geometry optimisation:
         atoms = row.toatoms()
@@ -245,7 +249,7 @@ def optimize_atoms(
             restart,
             calculator,
             atoms,
-            calculation_label,
+            label,
             calc_type,
             functional,
             dispersion_correction,
@@ -259,11 +263,9 @@ def optimize_atoms(
         os.chdir(os.path.join("..", ".."))
 
         if opt_atoms is not None:
-            logging.info(f"\t\tOptimized {calculation_label}!")
+            logging.info(f"\t\tOptimized {label}!")
         else:
-            logging.error(
-                f"\t\tError in optimize_atoms for {calculation_label}: atoms is None."
-            )
+            logging.error(f"\t\tError in optimize_atoms for {label}: atoms is None.")
 
         # Saves the optimized structure and data to a database.
         # Checks if the foreign key is available, otherwise assigns a new one
@@ -272,7 +274,7 @@ def optimize_atoms(
             opt_db.write(
                 opt_atoms,
                 foreignkey=foreign_key,
-                name=calculation_label,
+                name=label,
                 calc_type=calc_type,
             )
             logging.info(
@@ -282,8 +284,7 @@ def optimize_atoms(
 
         except Exception as e:
             logging.error(
-                f"\t\tError in writing to the database for "
-                f"{calculation_label}: {str(e)}"
+                f"\t\tError in writing to the database for " f"{label}: {str(e)}"
             )
 
 
