@@ -233,15 +233,19 @@ def optimize_atoms(
         cutoff (float): The cutoff energy for the calculation.
         lattice_opt (bool): Whether to perform lattice optimization.
     """
-
+    counter = 0
     for row in input_db.select():
-        if row.name:
-            label = f"{label}_{row.name}"
+        calculation_label = label
+        if hasattr(row, "name"):
+            calculation_label = f"{label}_{row.name}"
+        else:
+            counter += 1
+            calculation_label = f"{counter}_{label}"
 
         logging.info("-" * 40)
-        logging.info(f"Calculating {label}")
+        logging.info(f"Calculating {calculation_label}")
 
-        create_folder(label)
+        create_folder(calculation_label)
 
         # Performs geometry optimisation:
         atoms = row.toatoms()
@@ -249,7 +253,7 @@ def optimize_atoms(
             restart,
             calculator,
             atoms,
-            label,
+            calculation_label,
             calc_type,
             functional,
             dispersion_correction,
@@ -263,9 +267,11 @@ def optimize_atoms(
         os.chdir(os.path.join("..", ".."))
 
         if opt_atoms is not None:
-            logging.info(f"\t\tOptimized {label}!")
+            logging.info(f"\t\tOptimized {calculation_label}!")
         else:
-            logging.error(f"\t\tError in optimize_atoms for {label}: atoms is None.")
+            logging.error(
+                f"\t\tError in optimize_atoms for {calculation_label}: atoms is None."
+            )
 
         # Saves the optimized structure and data to a database.
         # Checks if the foreign key is available, otherwise assigns a new one
@@ -274,7 +280,7 @@ def optimize_atoms(
             opt_db.write(
                 opt_atoms,
                 foreignkey=foreign_key,
-                name=label,
+                name=calculation_label,
                 calc_type=calc_type,
             )
             logging.info(
@@ -284,7 +290,8 @@ def optimize_atoms(
 
         except Exception as e:
             logging.error(
-                f"\t\tError in writing to the database for " f"{label}: {str(e)}"
+                f"\t\tError in writing to the database for "
+                f"{calculation_label}: {str(e)}"
             )
 
 
