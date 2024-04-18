@@ -42,12 +42,13 @@ root/
     ├── calculation/
     │   ├── __pycache__/
     │   ├── calculators.py
-    │   └── opt.py
+    │   └── calc.py
     ├── config/
     │   └── config.yaml
     ├── processing/
     │   └── scan.py
     ├── run.sh
+    ├── manual_run.sh
     └── utils/
         └── create_directory_tree.ipynb
 ```
@@ -77,7 +78,8 @@ root/
 
     - **scan.py**: Script for performing scans.
 
-  - **run.sh**: Shell script for executing the project.
+  - **run.sh**: Shell script for executing the project, submitting it to a SLURM queue.
+  - **manual_run.sh**: Shell script for executing the project without submitting it to a SLURM queue.
 
   - **utils/**: Contains utility scripts.
 
@@ -108,31 +110,35 @@ conda env update -f environment.yaml --prune
 
 ## Usage
 
-### Setting Up Configuration (config.yaml)
-Begin by configuring your job using the provided config.yaml file. 
-Modify the parameters according to your specific requirements.
-Save the modifications to the config.yaml file.
-
-Below is a brief explanation of each parameter:
+### Setting up Hydra Configuration (config.yaml)
+Begin by configuring your job using the provided config.yaml file.
+The parameters are modified according to your specific requirements in the run.sh script.
+Below is a brief explanation of each parameter in the config file:
 
 **job**:
-- **prefix**: Prefix for job identification.
-- **calculator**: The type of calculator to be used (for now, the supported calculators are VASP, Gaussian, and DFTB).
-- **functional**: The functional used in calculations (e.g., PBE).
-- **basis_set**: The basis set to be employed.
-- **parametrization**: Parameterization (supported: GFN1, GFN2).
-- **kpoints**: The k-point grid dimensions.
+- **Restart:** Specify whether to restart the calculation (`True` or `False`). Default is `False`.
+- **Prefix:** Prefix for job identification.
+- **Calculator:** Choose the calculator type (`DFTB`, `Gaussian`, `Vasp`).
+- **Functional:** Specify the functional used in calculations (`PBE`, `RPBE`, `PBEsol`, `B3LYP`, or calculator-specific options).
+- **Basis Set:** Define the basis set to be employed.
+- **Parametrization:** Specify the parametrization for DFTB (`GFN1`, `GFN2`).
+- **K-points:** Define the k-points for the calculation (e.g., `[1, 1, 1]`).
+- **Energy Cutoff (`encut`):** Specify the energy cutoff for VASP. Default is `500`.
+- **Lattice Optimization (`lattice_opt`):** Choose between `"yes"` or `"no"`.
+- **Dispersion Correction:** Specify if dispersion correction is applied.
 - **calc_type**: The type of calculation (either "opt" for optimization or "sp" for single-point).
 
-**databases**:
-- **db_path**: The path to the database directory.
-- **input_db_name**: The name of the input database.
+**paths**:
+- **Output Path:** Specify the output path. By default, it's the parent directory of `db_path`.
+- **Database Path (`db_path`):** The path to the database directory.
+- **Input Database Name (`input_db_name`):** The name of the input database.
 
 
 ### Submitting the Job to the SLURM queue(run.sh)
-To submit your job to the SLURM queue on Tetralith, use the provided bash job script `run.sh`. 
+To submit your job to the SLURM queue on Tetralith, use the provided bash job script `run.sh`.
 You may need to customize certain details in the script. At the minimum, ensure to specify the 
 name of the account you use to perform computations, as well as an appropriate job time and job name.
+Modify the config prameters to fit your requirements.
 
 You can submit the job by executing the following command in the terminal:
 
@@ -147,8 +153,16 @@ squeue -l -u $USER
 ```
 
 ### Executing the code with Python
-If you want to run the code at another computer that does not use the SLURM queue,
-you can start the job by executing the following command in a Python terminal:
+If you want to run the code at a computer that does not use the SLURM queue,
+there is a bash script `manual_run.sh`, which works similar to `run.sh`.
+You can start the job by executing the following command in a terminal:
+
+```bash
+bash manual_run.sh
+```
+
+or similarly, you can execute it using python (this is not recommended 
+unless you do not have to change the config file between jobs):
 
 ```python
 python opt.py
