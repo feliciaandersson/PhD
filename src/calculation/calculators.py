@@ -5,6 +5,7 @@ import os
 from ase.calculators.dftb import Dftb
 from ase.calculators.gaussian import Gaussian, GaussianOptimizer
 from ase.calculators.vasp import Vasp
+from ase.io import read
 
 
 def DFTB_calculator(atoms, label, calc_type, parametrization, kpts, lattice_opt):
@@ -29,24 +30,35 @@ def DFTB_calculator(atoms, label, calc_type, parametrization, kpts, lattice_opt)
         "label": label,
         "Hamiltonian_": "xTB",
         "Hamiltonian_Method": f"{parametrization}-xTB",
-        # Hamiltonian_MaxSCCIterations=500,
+        "Hamiltonian_MaxSCCIterations":500,
         # Hamiltonian_SCCTolerance=1e-5,
+    }
+    
+    mixer_params = {
+        "Hamiltonian_Mixer":'Anderson{',
+        "Hamiltonian_Mixer_MixingParameter":'0.010',
+        "Hamiltonian_Mixer_Generations" :'4', 
+        "Hamiltonian_Mixer_InitMixingParameter" :'0.010',
+        "Hamiltonian_Mixer_DynMixingParameters" :'{1.0e-2 0.01 1.0e-3 0.1 1.0e-5 0.3}',
+        "Hamiltonian_Mixer_DiagonalRescaling" : '0.03',
     }
 
     opt_params = {
         "Driver_": "GeometryOptimization",
         "Driver_Optimiser": "Rational {}",
-        "Driver_LatticeOpt": lattice_opt,
+        "Driver_LatticeOpt": lattice_opt if lattice_opt else "No",
     }
 
     if calc_type.lower() == "opt":
         calc_params = {**common_params, **opt_params}
     else:
-        calc_params = {**common_params}
+        calc_params = {**common_params, **mixer_params}
 
     calc = Dftb(**calc_params)
     atoms.calc = calc
+    atoms.get_forces()
     atoms.get_potential_energy()
+
 
     return atoms
 
@@ -90,7 +102,7 @@ def Gaussian_calculator(
     )
 
     atoms.calc = calc
-
+    
     if calc_type.lower() == "opt":
         opt = GaussianOptimizer(atoms)
         opt.run(steps=500)
@@ -162,5 +174,6 @@ def VASP_calculator(
 
     atoms.calc = calc
     atoms.get_potential_energy()
-
+    atoms = read("OUTCAR")
+    
     return atoms
