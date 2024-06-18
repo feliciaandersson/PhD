@@ -8,6 +8,7 @@ from datetime import datetime
 import calculators
 import hydra
 from ase.db import connect
+from ase.io import read, write
 from omegaconf import DictConfig
 
 
@@ -99,7 +100,7 @@ def create_label(prefix, parameters, calc_type):
 
     if label.startswith("_"):
         label = label[1:]
-
+    
     return label
 
 
@@ -159,13 +160,36 @@ def run_calc(
 
     return opt_atoms
 
+def save_to_database(row, opt_atoms, calculation_label, calc_type, opt_db, counter):
+
+    
+    try:
+        foreign_key = counter if isinstance(row, str) else row.get("foreignkey", row.id)
+        opt_db.write(
+            opt_atoms,
+            foreignkey=foreign_key,
+            name=calculation_label,
+            calc_type=calc_type,
+        )
+        logging.info(
+            f"Wrote optimized structure to database {opt_db} with "
+            f"foreignkey {foreign_key}"
+        )
+
+    except Exception as e:
+        logging.error(
+            f"\t\tError in writing to the database for "
+            f"{calculation_label}: {str(e)}"
+        )
+
 
 def optimize_atoms(
-    input_db,
+    input_atom,
+    row,
     opt_db,
     calculator,
     calc_type,
-    label,
+    calculation_label,
     functional,
     dispersion_correction,
     basis_set,
@@ -173,6 +197,7 @@ def optimize_atoms(
     kpoints,
     cutoff,
     lattice_opt,
+    counter,
 ):
     """
     Optimize structures and save them to a new database.
@@ -185,61 +210,43 @@ def optimize_atoms(
     - label (str): Label for the new structures.
     - specification (str): Parametrisation or basis set.
     """
-
-    for row in input_db.select():
-        name = getattr(row, "name", "")
-        calculation_label = f"{name}_{label}"
-        logging.info("-" * 40)
-        logging.info(f"Calculating {calculation_label}")
-
-        create_folder(calculation_label)
-
-        # Performs geometry optimisation:
-        atoms = row.toatoms()
-        opt_atoms = run_calc(
-            calculator,
-            atoms,
-            calculation_label,
-            calc_type,
-            functional,
-            dispersion_correction,
-            basis_set,
-            parametrization,
-            kpoints,
-            cutoff,
-            lattice_opt,
+            
+    logging.info("-" * 40)
+    logging.info(f"Calculating {calculation_label}")
+    
+    create_folder(calculation_label)
+    
+    opt_atoms = run_calc(
+        calculator,
+        input_atom,
+        calculation_label,
+        calc_type,
+        functional,
+        dispersion_correction,
+        basis_set,
+        parametrization,
+        kpoints,
+        cutoff,
+        lattice_opt,
+        )
+        
+    if opt_atoms is not None:
+        logging.info(f"\t\tOptimized {calculation_label}!")
+    else:
+        logging.error(
+            f"\t\tError in optimize_atoms for {calculation_label}: atoms is None."
         )
 
-        os.chdir(os.path.join("..", ".."))
+    save_to_database(row, opt_atoms, calculation_label, calc_type, opt_db, counter)
 
-        if opt_atoms is not None:
-            logging.info(f"\t\tOptimized {calculation_label}!")
-        else:
-            logging.error(
-                f"\t\tError in optimize_atoms for {calculation_label}: atoms is None."
-            )
+    os.chdir(os.path.join("..", ".."))
 
-        # Saves the optimized structure and data to a database.
-        # Checks if the foreign key is available, otherwise assigns a new one
-        try:
-            foreign_key = row.get("foreignkey", row.id)
-            opt_db.write(
-                opt_atoms,
-                foreignkey=foreign_key,
-                name=calculation_label,
-                calc_type=calc_type,
-            )
-            logging.info(
-                f"Wrote optimized structure to database {opt_db} with "
-                f"foreignkey {foreign_key}"
-            )
-
-        except Exception as e:
-            logging.error(
-                f"\t\tError in writing to the database for "
-                f"{calculation_label}: {str(e)}"
-            )
-
+    if opt_atoms is not None:
+        logging.info(f"\t\tOptimized {calculation_label}!")
+    else:
+        logging.error(
+            f"\t\tError in optimize_atoms for {calculation_label}: atoms is None."
+        )
 
 @hydra.main(version_base=None, config_path="../config/", config_name="config.yaml")
 def main(cfg: DictConfig) -> None:
@@ -264,10 +271,18 @@ def main(cfg: DictConfig) -> None:
     setup_logging()
     start = setup_start_time(label, cfg.paths.db_path)
 
+
     input_db_path = os.path.join(cfg.paths.db_path, cfg.paths.input_db_name)
-    opt_db_path = os.path.join(
-        cfg.paths.db_path, f"{job.prefix}_{job.calculator}_{job.calc_type}.db"
-    )
+    if parametrization:
+        opt_db_path = os.path.join(
+            cfg.paths.db_path, f"{job.prefix}_{job.calculator}_{parametrization}_{job.calc_type}.db"
+        )
+    else:
+        opt_db_path = os.path.join(
+            cfg.paths.db_path, f"{job.prefix}_{job.calculator}_{job.calc_type}.db"
+        )
+    
+    
     if os.path.exists(cfg.paths.output_path):
         output_path = cfg.paths.output_path
     else:
@@ -276,26 +291,65 @@ def main(cfg: DictConfig) -> None:
     os.makedirs(output_path, exist_ok=True)
     os.chdir(output_path)
     logging.info(f"Output path: {output_path}")
-
-    input_db = set_up_database(input_db_path)
-    logging.info(f"Input database: {input_db_path}")
+    
     opt_db = set_up_database(opt_db_path)
     logging.info(f"Output database: {opt_db_path}")
+    
+    counter = 1
+    row=""
+    
+    if input_db_path.endswith(".db"):
+        input_db = set_up_database(input_db_path)
+        logging.info(f"Input database: {input_db_path}")
+        
+        for row in input_db.select():
+            
+            calculation_label = f"{counter}_{label}"
+            counter += 1
 
-    optimize_atoms(
-        input_db=input_db,
-        opt_db=opt_db,
-        calculator=job.calculator,
-        calc_type=job.calc_type,
-        label=label,
-        functional=job.functional,
-        dispersion_correction=job.dispersion_correction,
-        parametrization=parametrization,
-        basis_set=job.basis_set,
-        kpoints=tuple(job.kpoints) if job.kpoints is not None else (),
-        cutoff=job.encut,
-        lattice_opt=job.lattice_opt,
-    )
+            atom = row.toatoms()
+            
+            optimize_atoms(
+            input_atom=atom,
+            row=row,
+            opt_db=opt_db,
+            calculator=job.calculator,
+            calc_type=job.calc_type,
+            calculation_label=calculation_label,
+            functional=job.functional,
+            dispersion_correction=job.dispersion_correction,
+            basis_set=job.basis_set,
+            parametrization=parametrization,
+            kpoints=tuple(job.kpoints) if job.kpoints is not None else (),
+            cutoff=job.encut,
+            lattice_opt=job.lattice_opt,
+            counter=counter,
+            )
+
+    elif input_db_path.endswith(".traj"):
+        logging.info(f"Input trajectory: {input_db_path}")
+        input_atoms = read(input_db_path, index=":")
+        
+        for atom in input_atoms:
+            counter += 1
+            calculation_label = f"{counter}_{label}"
+            
+            optimize_atoms(
+                input_atom=atom,
+                row=row,
+                opt_db=opt_db,
+                calculator=job.calculator,
+                calc_type=job.calc_type,
+                calculation_label=calculation_label,
+                functional=job.functional,
+                dispersion_correction=job.dispersion_correction,
+                basis_set=job.basis_set,
+                parametrization=parametrization,
+                kpoints=tuple(job.kpoints) if job.kpoints is not None else (),
+                cutoff=job.encut,
+                lattice_opt=job.lattice_opt,
+                counter=counter,
+            )
 
     end_time = setup_end_time(start, label)
     print(f"Ending job with label {label} at {end_time}")
