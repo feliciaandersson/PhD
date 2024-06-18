@@ -52,13 +52,26 @@ def DFTB_calculator(atoms, label, calc_type, parametrization, kpts, lattice_opt)
     if calc_type.lower() == "opt":
         calc_params = {**common_params, **opt_params}
     else:
-        calc_params = {**common_params, **mixer_params}
+        # calc_params = {**common_params, **mixer_params}
+        calc_params = {**common_params}
 
+
+    # perform opt:
+    os.makedirs("./opt", exist_ok=True)
+    os.chdir("./opt")
     calc = Dftb(**calc_params)
+    atoms.calc = calc
+    atoms.get_potential_energy()
+    
+    # perform sp:
+    atoms = read("geo_end.gen")
+    os.makedirs("./sp", exist_ok=True)
+    os.chdir("./sp")
     atoms.calc = calc
     atoms.get_forces()
     atoms.get_potential_energy()
-
+    atoms.get_charges()
+    os.chdir(os.path.join("..", ".."))
 
     return atoms
 
