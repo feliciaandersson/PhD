@@ -1,17 +1,23 @@
 name: project
 
 channels:
-  - defaults
   - conda-forge
+  - defaults
   
 dependencies:
   - python=3.11
   - numpy
   - matplotlib
+  - plotly
+  - plotly-notebook
   - pandas
   - scipy
   - jupyter
   - ruff
+  - seaborn
+  - jupyterlab>=3 
+  - ipywidgets>=7.6
+  - jupyter-dash
   - pip
   - pip:
     - git+https://gitlab.com/ase/ase.git@master
