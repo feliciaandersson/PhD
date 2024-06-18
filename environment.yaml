@@ -13,6 +13,8 @@ dependencies:
   - pandas
   - scipy
   - jupyter
+  - plotly
+  - crest
   - ruff
   - seaborn
   - jupyterlab>=3 

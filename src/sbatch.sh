@@ -23,24 +23,22 @@ export VASP_COMMAND='mpprun vasp_std'
 export VASP_PP_PATH=/proj/teoroo/users/x_felan/VASP/input/
 module add VASP/5.4.4.16052018-nsc2-intel-2018a-eb
 
-
-# Loop over each database file in the specified directory
-for db_file in /home/felicia/Cellulose/machine_learning_project/training/structure_opts/4_2*.db; do
-    python ./calculation/opt.py $(cat <<EOF
-        job.prefix=$(basename $db_file .db)
-        job.calculator=DFTB
-        job.functional=
-        job.dispersion_correction=
-        job.basis_set=
-        job.parametrization=GFN2
-        job.kpoints=
-        job.encut=
-        job.lattice_opt=
-        job.calc_type=sp
-
-        paths.output_path=
-        paths.db_path=/home/felicia/Cellulose/calculations/DFTB/DFTB_crystals/beta/beta_B/db
-        paths.input_db_name=$db_file
+# Run the calculation
+python ./calculation/opt.py $(cat <<EOF
+    job.restart=False
+    job.prefix=a_descrptive_name
+    job.calculator="calculator"
+    job.functional="functional"
+    job.dispersion_correction="disp_corr"
+    job.basis_set="basis_set"
+    job.parametrization="parametrization"
+    job.kpoints=[1,1,1]
+    job.encut=500
+    job.lattice_opt="no"
+    job.calc_type=opt
+    paths.output_path=
+    paths.db_path=/home/felicia/Cellulose/calculations/DFTB/DFTB_crystals/beta/beta_B/db
+    paths.input_db_name=$db_file
 EOF
 )
 done

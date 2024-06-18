@@ -6,6 +6,7 @@ export OMP_STACKSIZE=8G
 
 # Run the calculation
 python ./calculation/opt.py $(cat <<EOF
+    job.restart=False
     job.prefix=a_descrptive_name
     job.calculator="calculator"
     job.functional="functional"
