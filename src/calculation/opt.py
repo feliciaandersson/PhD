@@ -12,9 +12,40 @@ from ase.io import read, write
 from omegaconf import DictConfig
 
 
+def setup_from_config(job):
+    """
+    Setup configuration parameters from the job object.
+
+    Args:
+    - job: Configuration object with job parameters.
+
+    Returns:
+    - parametrization: Uppercased parametrization value or None.
+    - method_parameters: List of method parameters for calculation.
+    """
+
+    kpoints_label = "-".join(str(x) for x in job.kpoints) if job.kpoints else ""
+    parametrization = job.parametrization.upper() if job.parametrization else None
+    lattice_opt = "lattice" if job.parametrization == "Yes" else "atomic"
+
+    method_parameters = [
+        job.calculator,
+        job.functional,
+        job.dispersion_correction,
+        job.basis_set,
+        str(job.encut),
+        parametrization,
+        kpoints_label,
+        lattice_opt,
+    ]
+    
+    return parametrization, method_parameters
+    
+    
 def setup_logging():
     """Setup logging configurations."""
-    log_format = "[%(asctime)s] {%(pathname)s:%(lineno)d} %(message)s  "
+
+    log_format = "[%(asctime)s] {%(pathname)s:%(lineno)d} %(message)s"
     logging.basicConfig(
         filename="logfile.log",
         level=logging.INFO,
@@ -29,35 +60,26 @@ def format_time(timestamp):
 
 
 def setup_start_time(label, db_path):
-    """Set up the start time for logging.
-
+    """
+    Setup start time for logging.
     Args:
-        label (str): The label for the job.
-        db_path (str): The path of the database.
+    - label (str): Label for the job.
+    - db_path (str): Path to the database.
 
     Returns:
-        start_time (float): The start time.
+    - float: Start time timestamp.
     """
+
     start_time = time.time()
     logging.info("-" * 80)
-    logging.info(
-        f"Starting a new job {os.environ.get('SLURM_JOB_ID')} with label {label} at {format_time(start_time)}"
-    )
+    logging.info(f"Starting a new job with label {label} at {format_time(start_time)}")
     logging.info(f"Path: {db_path}")
 
     return start_time
 
 
 def set_up_database(db_path):
-    """Set up the database connection.
-
-    Args:
-        db_path (str): The path of the database.
-
-    Returns:
-        structures_db (ase.db.Database): The database connection.
-    """
-
+    """Set up a database connection from the db path."""
     if db_path:
         structures_db = connect(db_path)
         logging.info(f"Database read: {structures_db}")
@@ -82,8 +104,6 @@ def setup_end_time(start, label):
         f"Job with label {label} started at {format_time(start)} and took {formatted_job_time}."
     )
 
-    return end_time
-
 
 def create_folder(calculation_label):
     """
@@ -92,7 +112,7 @@ def create_folder(calculation_label):
     Args:
     - calculation_label (str): Label for the calculation.
     """
-
+    
     try:
         logging.info(f"\t\tMakes output folders: {calculation_label}")
         output_folder = os.path.join("./outputs/", calculation_label)
@@ -106,17 +126,6 @@ def create_folder(calculation_label):
 
 
 def create_label(prefix, parameters, calc_type):
-    """Create a label for a calculation.
-
-    Args:
-        prefix (str): The prefix for the label.
-        parameters (list): The parameters for the label.
-        calc_type (str): The type of calculation.
-
-    Returns:
-        label (str): The created label.
-    """
-
     method_label = "_".join(p for p in parameters if p is not None)
 
     label = f"{prefix}_{method_label}_{calc_type}"
@@ -126,12 +135,10 @@ def create_label(prefix, parameters, calc_type):
 
     if label.startswith("_"):
         label = label[1:]
-    
+
     return label
 
-
 def run_calc(
-    restart,
     calculator,
     atoms,
     label,
@@ -144,7 +151,8 @@ def run_calc(
     cutoff,
     lattice_opt,
 ):
-    """Run a calculation using the specified calculator.
+    """
+    Run the calculation using the specified calculator.
 
     Args:
         restart (bool): Whether to restart the calculation.
@@ -160,8 +168,9 @@ def run_calc(
         cutoff (float): The cutoff energy for the calculation.
         lattice_opt (bool): Whether to perform lattice optimization.
 
+
     Returns:
-        Atoms: The optimized Atoms object.
+    - opt_atoms: Optimized atoms object.
     """
 
     logging.info(f"\t\tPerforming an {calc_type} calculation in {calculator}")
@@ -169,21 +178,14 @@ def run_calc(
     try:
         if calculator.lower() == "dftb":
             opt_atoms = calculators.DFTB_calculator(
-                restart, atoms, label, calc_type, parametrization, kpoints, lattice_opt
+                atoms, label, calc_type, parametrization, kpoints, lattice_opt
             )
         elif calculator.lower() == "gaussian":
             opt_atoms = calculators.Gaussian_calculator(
-                restart,
-                atoms,
-                label,
-                calc_type,
-                functional,
-                dispersion_correction,
-                basis_set,
+                atoms, label, calc_type, functional, dispersion_correction, basis_set
             )
         elif calculator.lower() == "vasp":
             opt_atoms = calculators.VASP_calculator(
-                restart,
                 atoms,
                 label,
                 calc_type,
@@ -193,6 +195,8 @@ def run_calc(
                 cutoff,
                 lattice_opt,
             )
+        else:
+            raise ValueError(f"Unsupported calculator: {calculator}")
 
     except Exception as e:
         logging.error(f"\t\tError in run_calc for {calculator} calculation: {str(e)}")
@@ -243,19 +247,20 @@ def optimize_atoms(
     Optimize structures and save them to a new database.
 
     Args:
-        restart (bool): Whether to restart the calculation.
-        input_db (ase.db.Database): The input database with input structure Atoms objects.
-        opt_db (ase.db.Database): The database with optimized structure Atoms objects.
-        calculator (str): The name of the calculator.
-        calc_type (str): The type of calculation (sp or opt).
-        label (str): The label for the new structures.
-        functional (str): The functional for the calculation.
-        dispersion_correction (str): The dispersion correction method.
-        basis_set (str): The basis set for the calculation.
-        parametrization (str): The parametrization for the calculation.
-        kpoints (tuple): The k-points for the calculation.
-        cutoff (float): The cutoff energy for the calculation.
-        lattice_opt (bool): Whether to perform lattice optimization.
+    - input_atom: Atom object to be optimized.
+    - row: Database row for the current atom (used for foreign key).
+    - opt_db: Database object to save the optimized structures.
+    - calculator (str): Calculator name.
+    - calc_type (str): Calculation type, either "sp" for single-point or "opt" for optimization.
+    - calculation_label (str): Label for the calculation.
+    - functional (str): Functional used for the calculation.
+    - dispersion_correction (str): Dispersion correction applied.
+    - basis_set (str): Basis set used.
+    - parametrization (str): Parametrization used.
+    - kpoints (tuple): K-points used for the calculation.
+    - cutoff (float): Cutoff energy for the calculation.
+    - lattice_opt (str): Type of lattice optimization ("lattice" or "atomic").
+    - counter (int): Counter for unique labeling.
     """
             
     logging.info("-" * 40)
@@ -295,48 +300,24 @@ def optimize_atoms(
             f"\t\tError in optimize_atoms for {calculation_label}: atoms is None."
         )
 
+
 @hydra.main(version_base=None, config_path="../config/", config_name="config.yaml")
 def main(cfg: DictConfig) -> None:
-    """
-    The main function to execute the job.
-
-    Args:
-        cfg (DictConfig): The configuration setup for the job.
-    """
-
+    
+    # Create environment:
     job = cfg.job
-
-    kpoints_label = "-".join(str(x) for x in job.kpoints) if job.kpoints else ""
-    parametrization = (
-        job.parametrization.upper() if job.parametrization is not None else None
-    )
-    method_parameters = [
-        job.calculator,
-        job.functional,
-        job.dispersion_correction,
-        job.basis_set,
-        str(job.encut),
-        parametrization,
-        kpoints_label,
-    ]
-
+    parametrization, method_parameters = setup_from_config(job)
     label = create_label(job.prefix, method_parameters, job.calc_type)
-
     setup_logging()
     start = setup_start_time(label, cfg.paths.db_path)
 
-
+    # Set up databases:
     input_db_path = os.path.join(cfg.paths.db_path, cfg.paths.input_db_name)
-    if parametrization:
-        opt_db_path = os.path.join(
-            cfg.paths.db_path, f"{job.prefix}_{job.calculator}_{parametrization}_{job.calc_type}.db"
-        )
-    else:
-        opt_db_path = os.path.join(
-            cfg.paths.db_path, f"{job.prefix}_{job.calculator}_{job.calc_type}.db"
-        )
+    opt_db_path = os.path.join(cfg.paths.db_path, f"{job.prefix}_{job.calculator}_{job.calc_type}.db")
+    opt_db = set_up_database(opt_db_path)
+    logging.info(f"Output database: {opt_db_path}")
     
-    
+    # Set up output path:
     if os.path.exists(cfg.paths.output_path):
         output_path = cfg.paths.output_path
     else:
@@ -346,9 +327,7 @@ def main(cfg: DictConfig) -> None:
     os.chdir(output_path)
     logging.info(f"Output path: {output_path}")
     
-    opt_db = set_up_database(opt_db_path)
-    logging.info(f"Output database: {opt_db_path}")
-    
+    # Perform calculation:
     counter = 1
     row=""
     
@@ -357,11 +336,35 @@ def main(cfg: DictConfig) -> None:
         logging.info(f"Input database: {input_db_path}")
         
         for row in input_db.select():
-            
-            calculation_label = f"{counter}_{label}"
             counter += 1
+            calculation_label = f"{counter}_{label}"
 
             atom = row.toatoms()
+            
+            optimize_atoms(
+                input_atom=atom,
+                row=row,
+                opt_db=opt_db,
+                calculator=job.calculator,
+                calc_type=job.calc_type,
+                calculation_label=calculation_label,
+                functional=job.functional,
+                dispersion_correction=job.dispersion_correction,
+                basis_set=job.basis_set,
+                parametrization=parametrization,
+                kpoints=tuple(job.kpoints) if job.kpoints is not None else (),
+                cutoff=job.encut,
+                lattice_opt=job.lattice_opt,
+                counter=counter,
+                )
+
+    elif input_db_path.endswith(".traj"):
+        logging.info(f"Input trajectory: {input_db_path}")
+        input_atoms = read(input_db_path, index=":")
+        
+        for atom in input_atoms:
+            counter += 1
+            calculation_label = f"{counter}_{label.replace('.traj', '')}"
             
             optimize_atoms(
             input_atom=atom,
@@ -380,33 +383,30 @@ def main(cfg: DictConfig) -> None:
             counter=counter,
             )
 
-    elif input_db_path.endswith(".traj"):
-        logging.info(f"Input trajectory: {input_db_path}")
-        input_atoms = read(input_db_path, index=":")
-        
-        for atom in input_atoms:
-            counter += 1
-            calculation_label = f"{counter}_{label}"
-            
-            optimize_atoms(
-                input_atom=atom,
-                row=row,
-                opt_db=opt_db,
-                calculator=job.calculator,
-                calc_type=job.calc_type,
-                calculation_label=calculation_label,
-                functional=job.functional,
-                dispersion_correction=job.dispersion_correction,
-                basis_set=job.basis_set,
-                parametrization=parametrization,
-                kpoints=tuple(job.kpoints) if job.kpoints is not None else (),
-                cutoff=job.encut,
-                lattice_opt=job.lattice_opt,
-                counter=counter,
+    else:
+        logging.info(f"Input file: {input_db_path}")
+        input_atom = read(input_db_path)
+        calculation_label = f"{counter}_{label.replace('.xyz', '')}"
+
+        optimize_atoms(
+            input_atom=input_atom,
+            row=row,
+            opt_db=opt_db,
+            calculator=job.calculator,
+            calc_type=job.calc_type,
+            calculation_label=calculation_label,
+            functional=job.functional,
+            dispersion_correction=job.dispersion_correction,
+            basis_set=job.basis_set,
+            parametrization=parametrization,
+            kpoints=tuple(job.kpoints) if job.kpoints is not None else (),
+            cutoff=job.encut,
+            lattice_opt=job.lattice_opt,
+            counter=counter,
             )
 
-    end_time = setup_end_time(start, label)
-    print(f"Ending job with label {label} at {format_time(end_time)}.")
+    setup_end_time(start, label)
+    print(f"Ending job with label {label}.")
 
 
 if __name__ == "__main__":
