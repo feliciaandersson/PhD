@@ -26,7 +26,7 @@ def setup_from_config(job):
 
     kpoints_label = "-".join(str(x) for x in job.kpoints) if job.kpoints else ""
     parametrization = job.parametrization.upper() if job.parametrization else None
-    lattice_opt = "lattice" if job.parametrization == "Yes" else "atomic"
+    lattice_opt = "lattice" if job.lattice_opt == "Yes" else "atomic"
 
     method_parameters = [
         job.calculator,
@@ -39,7 +39,7 @@ def setup_from_config(job):
         lattice_opt,
     ]
     
-    return parametrization, method_parameters
+    return parametrization, lattice_opt, method_parameters
     
     
 def setup_logging():
@@ -206,9 +206,8 @@ def run_calc(
 
 def save_to_database(row, opt_atoms, calculation_label, calc_type, opt_db, counter):
 
-    
     try:
-        foreign_key = counter if isinstance(row, str) else row.get("foreignkey", row.id)
+        foreign_key = counter if row is None else row.get("foreignkey", row.id)
         opt_db.write(
             opt_atoms,
             foreignkey=foreign_key,
@@ -306,14 +305,17 @@ def main(cfg: DictConfig) -> None:
     
     # Create environment:
     job = cfg.job
-    parametrization, method_parameters = setup_from_config(job)
+    parametrization, lattice_opt_type, method_parameters = setup_from_config(job)
     label = create_label(job.prefix, method_parameters, job.calc_type)
     setup_logging()
     start = setup_start_time(label, cfg.paths.db_path)
 
     # Set up databases:
     input_db_path = os.path.join(cfg.paths.db_path, cfg.paths.input_db_name)
-    opt_db_path = os.path.join(cfg.paths.db_path, f"{job.prefix}_{job.calculator}_{job.calc_type}.db")
+    if job.calculator == "dftb":
+        opt_db_path = os.path.join(cfg.paths.db_path, f"{job.prefix}_{job.calculator}_{parametrization}_{job.calc_type}_{lattice_opt_type}.db")
+    else:
+        opt_db_path = os.path.join(cfg.paths.db_path, f"{job.prefix}_{job.calculator}_{job.calc_type}_{lattice_opt_type}.db")
     opt_db = set_up_database(opt_db_path)
     logging.info(f"Output database: {opt_db_path}")
     
@@ -328,73 +330,38 @@ def main(cfg: DictConfig) -> None:
     logging.info(f"Output path: {output_path}")
     
     # Perform calculation:
-    counter = 1
-    row=""
-    
-    if input_db_path.endswith(".db"):
-        input_db = set_up_database(input_db_path)
-        logging.info(f"Input database: {input_db_path}")
-        
-        for row in input_db.select():
-            counter += 1
-            calculation_label = f"{counter}_{label}"
+    input_atoms = []
+    calculation_labels = []
+    rows = []
 
-            atom = row.toatoms()
-            
-            optimize_atoms(
-                input_atom=atom,
-                row=row,
-                opt_db=opt_db,
-                calculator=job.calculator,
-                calc_type=job.calc_type,
-                calculation_label=calculation_label,
-                functional=job.functional,
-                dispersion_correction=job.dispersion_correction,
-                basis_set=job.basis_set,
-                parametrization=parametrization,
-                kpoints=tuple(job.kpoints) if job.kpoints is not None else (),
-                cutoff=job.encut,
-                lattice_opt=job.lattice_opt,
-                counter=counter,
-                )
+    if input_db_path.endswith(".db"):
+        logging.info(f"Input database: {input_db_path}")
+        input_db = set_up_database(input_db_path)
+        for i, row in enumerate(input_db.select(), start=1):
+            input_atoms.append(row.toatoms())
+            calculation_labels.append(f"{i}_{label}")
+            rows.append(row) 
 
     elif input_db_path.endswith(".traj"):
         logging.info(f"Input trajectory: {input_db_path}")
         input_atoms = read(input_db_path, index=":")
-        
-        for atom in input_atoms:
-            counter += 1
-            calculation_label = f"{counter}_{label.replace('.traj', '')}"
-            
-            optimize_atoms(
-            input_atom=atom,
-            row=row,
-            opt_db=opt_db,
-            calculator=job.calculator,
-            calc_type=job.calc_type,
-            calculation_label=calculation_label,
-            functional=job.functional,
-            dispersion_correction=job.dispersion_correction,
-            basis_set=job.basis_set,
-            parametrization=parametrization,
-            kpoints=tuple(job.kpoints) if job.kpoints is not None else (),
-            cutoff=job.encut,
-            lattice_opt=job.lattice_opt,
-            counter=counter,
-            )
+        for i, atom in enumerate(input_atoms, start=1):
+            calculation_labels.append(f"{i}_{label.replace('.traj', '')}")
 
     else:
         logging.info(f"Input file: {input_db_path}")
-        input_atom = read(input_db_path)
-        calculation_label = f"{counter}_{label.replace('.xyz', '')}"
+        input_atoms.append(read(input_db_path))
+        label = label.replace('.xyz', '').replace('.vasp','')
+        calculation_labels.append(f"{label}")
 
+    for i, (atom, label) in enumerate(zip(input_atoms, calculation_labels)):
         optimize_atoms(
-            input_atom=input_atom,
-            row=row,
+            input_atom=atom,
+            row=rows[i] if rows else None,
             opt_db=opt_db,
             calculator=job.calculator,
             calc_type=job.calc_type,
-            calculation_label=calculation_label,
+            calculation_label=label,
             functional=job.functional,
             dispersion_correction=job.dispersion_correction,
             basis_set=job.basis_set,
@@ -402,7 +369,7 @@ def main(cfg: DictConfig) -> None:
             kpoints=tuple(job.kpoints) if job.kpoints is not None else (),
             cutoff=job.encut,
             lattice_opt=job.lattice_opt,
-            counter=counter,
+            counter=i+1,
             )
 
     setup_end_time(start, label)
