@@ -2,6 +2,7 @@
 
 import logging
 import os
+import re
 import time
 from datetime import datetime
 
@@ -24,22 +25,30 @@ def setup_from_config(job):
     - method_parameters: List of method parameters for calculation.
     """
 
-    kpoints_label = "-".join(str(x) for x in job.kpoints) if job.kpoints else ""
+    opt_type = "lattice" if job.lattice_opt.lower() == "yes" else "atomic"
     parametrization = job.parametrization.upper() if job.parametrization else None
-    lattice_opt = "lattice" if job.lattice_opt == "Yes" else "atomic"
-
+    kpoints_label = "-".join(str(x) for x in job.kpoints) if job.kpoints else ""
+    
     method_parameters = [
         job.calculator,
         job.functional,
         job.dispersion_correction,
         job.basis_set,
-        str(job.encut),
         parametrization,
+        str(job.encut),
         kpoints_label,
-        lattice_opt,
     ]
     
-    return parametrization, lattice_opt, method_parameters
+    method_label = "_".join(p for p in method_parameters if p)
+    db_method_label = "_".join(p for p in method_parameters[:5] if p)
+    
+    calc_label = f"{job.prefix}_{method_label}_{job.calc_type}"
+    db_label = f"{job.prefix}_{db_method_label}_{job.calc_type}"
+    
+    while "__" in calc_label:
+        label = re.sub(r"__+", "_", calc_label)
+    
+    return parametrization, calc_label.lstrip("_"), db_label.lstrip("_")
     
     
 def setup_logging():
@@ -62,6 +71,7 @@ def format_time(timestamp):
 def setup_start_time(label, db_path):
     """
     Setup start time for logging.
+    
     Args:
     - label (str): Label for the job.
     - db_path (str): Path to the database.
@@ -77,8 +87,21 @@ def setup_start_time(label, db_path):
 
     return start_time
 
+def setup_paths(paths, db_label):
+    
+    # db paths:
+    input_db_path = os.path.join(paths.db_path, paths.input_db_name)
+    opt_db_path = os.path.join(paths.db_path, f"{db_label}.db")
+    
+    # output path:
+    if os.path.exists(paths.output_path):
+        output_path = paths.output_path
+    else:
+        output_path = os.path.abspath(os.path.join(paths.db_path, os.pardir))
 
-def set_up_database(db_path):
+    return input_db_path, opt_db_path, output_path
+
+def connect_db(db_path):
     """Set up a database connection from the db path."""
     if db_path:
         structures_db = connect(db_path)
@@ -87,7 +110,6 @@ def set_up_database(db_path):
         raise ValueError("Input and output database path must be provided.")
 
     return structures_db
-
 
 def setup_end_time(start, label):
     """
@@ -117,26 +139,13 @@ def create_folder(calculation_label):
         logging.info(f"\t\tMakes output folders: {calculation_label}")
         output_folder = os.path.join("./outputs/", calculation_label)
         os.makedirs(output_folder, exist_ok=True)
-        os.chdir(output_folder)
 
     except Exception as e:
         logging.error(
             f"\t\tError in making output folder for {calculation_label}: {str(e)}"
         )
 
-
-def create_label(prefix, parameters, calc_type):
-    method_label = "_".join(p for p in parameters if p is not None)
-
-    label = f"{prefix}_{method_label}_{calc_type}"
-
-    while "__" in label:
-        label = label.replace("__", "_")
-
-    if label.startswith("_"):
-        label = label[1:]
-
-    return label
+    return output_folder
 
 def run_calc(
     calculator,
@@ -265,7 +274,8 @@ def optimize_atoms(
     logging.info("-" * 40)
     logging.info(f"Calculating {calculation_label}")
     
-    create_folder(calculation_label)
+    output_folder = create_folder(calculation_label)
+    os.chdir(output_folder)
     
     opt_atoms = run_calc(
         calculator,
@@ -305,30 +315,22 @@ def main(cfg: DictConfig) -> None:
     
     # Create environment:
     job = cfg.job
-    parametrization, lattice_opt_type, method_parameters = setup_from_config(job)
-    label = create_label(job.prefix, method_parameters, job.calc_type)
+    paths = cfg.paths
+    parametrization, calc_label, db_label = setup_from_config(job)
     setup_logging()
-    start = setup_start_time(label, cfg.paths.db_path)
-
-    # Set up databases:
-    input_db_path = os.path.join(cfg.paths.db_path, cfg.paths.input_db_name)
-    if job.calculator == "dftb":
-        opt_db_path = os.path.join(cfg.paths.db_path, f"{job.prefix}_{job.calculator}_{parametrization}_{job.calc_type}_{lattice_opt_type}.db")
-    else:
-        opt_db_path = os.path.join(cfg.paths.db_path, f"{job.prefix}_{job.calculator}_{job.calc_type}_{lattice_opt_type}.db")
-    opt_db = set_up_database(opt_db_path)
+    start = setup_start_time(calc_label, paths.db_path)
+    
+    # Set up paths and database connection:
+    input_db_path, opt_db_path, output_path = setup_paths(paths, db_label)
+    
+    opt_db = connect_db(opt_db_path)
     logging.info(f"Output database: {opt_db_path}")
     
-    # Set up output path:
-    if os.path.exists(cfg.paths.output_path):
-        output_path = cfg.paths.output_path
-    else:
-        output_path = os.path.abspath(os.path.join(cfg.paths.db_path, os.pardir))
-
     os.makedirs(output_path, exist_ok=True)
-    os.chdir(output_path)
     logging.info(f"Output path: {output_path}")
+    os.chdir(output_path)
     
+
     # Perform calculation:
     input_atoms = []
     calculation_labels = []
@@ -336,32 +338,32 @@ def main(cfg: DictConfig) -> None:
 
     if input_db_path.endswith(".db"):
         logging.info(f"Input database: {input_db_path}")
-        input_db = set_up_database(input_db_path)
+        input_db = connect_db(input_db_path)
         for i, row in enumerate(input_db.select(), start=1):
             input_atoms.append(row.toatoms())
-            calculation_labels.append(f"{i}_{label}")
+            calculation_labels.append(f"{i}_{calc_label}")
             rows.append(row) 
 
     elif input_db_path.endswith(".traj"):
         logging.info(f"Input trajectory: {input_db_path}")
         input_atoms = read(input_db_path, index=":")
         for i, atom in enumerate(input_atoms, start=1):
-            calculation_labels.append(f"{i}_{label.replace('.traj', '')}")
+            calculation_labels.append(f"{i}_{calc_label.replace('.traj', '')}")
 
     else:
         logging.info(f"Input file: {input_db_path}")
         input_atoms.append(read(input_db_path))
-        label = label.replace('.xyz', '').replace('.vasp','')
-        calculation_labels.append(f"{label}")
+        calc_label = calc_label.replace('.xyz', '').replace('.vasp','')
+        calculation_labels.append(f"{calc_label}")
 
-    for i, (atom, label) in enumerate(zip(input_atoms, calculation_labels)):
+    for i, (atom, calc_label) in enumerate(zip(input_atoms, calculation_labels)):
         optimize_atoms(
             input_atom=atom,
             row=rows[i] if rows else None,
             opt_db=opt_db,
             calculator=job.calculator,
             calc_type=job.calc_type,
-            calculation_label=label,
+            calculation_label=calc_label,
             functional=job.functional,
             dispersion_correction=job.dispersion_correction,
             basis_set=job.basis_set,
@@ -372,8 +374,8 @@ def main(cfg: DictConfig) -> None:
             counter=i+1,
             )
 
-    setup_end_time(start, label)
-    print(f"Ending job with label {label}.")
+    setup_end_time(start, calc_label)
+    print(f"Ending job with label {calc_label}.")
 
 
 if __name__ == "__main__":
